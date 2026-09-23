@@ -9,8 +9,8 @@
 <body>
 
 <div class="container">
-  <h1>Ajusteur Automatique de Repas</h1>
-  <p class="subtitle">Sélectionnez vos ingrédients : l'application calcule la portion exacte pour égaler 100g de viande (~20g de protéines complètes).</p>
+  <h1>Générateur d'Assiette Équilibrée</h1>
+  <p class="subtitle">Sélectionnez vos ingrédients : l'application ajuste automatiquement les portions (Équivalent Viande)</p>
 
   <form id="meal-form">
     <div class="grid-select">
@@ -63,30 +63,31 @@
       </div>
     </div>
 
-    <button type="button" id="btn-submit">Ajuster et calculer les portions idéales</button>
+    <button type="button" id="btn-submit">Calculer les portions et l'équilibre</button>
   </form>
 
-  <!-- Résultat -->
+  <!-- Résultat (Design Précédent) -->
   <div id="result" class="result-card">
-    <h2>📋 Quantités Recommandées pour votre Assiette</h2>
-    <ul id="quantities-list" class="qty-list"></ul>
+    <h2 id="result-title"></h2>
+    <p id="result-text"></p>
 
     <div class="stats-grid">
       <div class="stat-box">
         <span class="stat-value" id="total-protein">0g</span>
-        <span class="stat-unit">Protéines Nettes Assimilables</span>
+        <span class="stat-unit">Protéines Assimilables</span>
       </div>
       <div class="stat-box">
-        <span class="stat-value" id="total-calories">0</span>
-        <span class="stat-unit">Calories Totales (kcal)</span>
+        <span class="stat-value" id="quality-score">0%</span>
+        <span class="stat-unit">Valeur Biologique (vs Viande)</span>
       </div>
       <div class="stat-box stat-full">
-        <span class="stat-value" id="total-b12">0 µg</span>
-        <span class="stat-unit">Vitamine B12</span>
+        <span class="stat-value" id="total-calories">0 kcal</span>
+        <span class="stat-unit">Énergie Totale du Repas</span>
       </div>
     </div>
 
-    <p id="profile-advice" class="status-msg"></p>
+    <p id="portion-advice-text" class="status-msg"></p>
+    <p id="b12-status-text" class="status-msg"></p>
   </div>
 </div>
 
