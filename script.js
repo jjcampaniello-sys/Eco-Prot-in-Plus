@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('btn-submit').addEventListener('click', ajusterRepas);
+  document.getElementById('btn-submit').addEventListener('click', ajusterEtCalculer);
 });
 
-function ajusterRepas() {
+function ajusterEtCalculer() {
   const cereale = document.getElementById('cereale');
   const legumineuse = document.getElementById('legumineuse');
   const laitier = document.getElementById('laitier');
@@ -18,76 +18,36 @@ function ajusterRepas() {
     return;
   }
 
-  // Quantités cibles d'acides aminés pour égaler 100g de viande (~20g de protéines complètes)
-  // Lysine cible : ~1400 mg | Méthionine cible : ~500 mg
-  let targetLysine = 1400;
-  let targetMethionine = 500;
+  let qtyCereale = 0, qtyLegumineuse = 0, qtyLaitier = 0, qtyLegume = vOpt.value ? 150 : 0;
+  let qualityScore = 60;
 
-  let qtyCereale = 0;
-  let qtyLegumineuse = 0;
-  let qtyLaitier = 0;
-  let qtyLegume = vOpt.value ? 150 : 0; // Portion standard de légumes (150g)
-
-  // Calcule des apports déjà fournis par les légumes
-  let currentLys = (parseFloat(vOpt.dataset?.lys || 0) * qtyLegume) / 100;
-  let currentMet = (parseFloat(vOpt.dataset?.met || 0) * qtyLegume) / 100;
-  let currentProt = (parseFloat(vOpt.dataset?.prot || 0) * qtyLegume) / 100;
-  let currentCal = (parseFloat(vOpt.dataset?.cal || 0) * qtyLegume) / 100;
-  let currentB12 = (parseFloat(vOpt.dataset?.b12 || 0) * qtyLegume) / 100;
-
-  // CAS 1 : Présence d'un produit laitier / œuf (Protéine complète)
+  // Calcul intelligent des portions cibles (~20g prot)
   if (dOpt.value) {
-    if (cOpt.value && legumineuse.value) {
-      qtyLaitier = 100; // portion modérée (ex: 100g de skyr)
-      qtyCereale = 50;  // 50g cru
-      qtyLegumineuse = 40; // 40g cru
-    } else if (cOpt.value) {
-      qtyLaitier = 120;
-      qtyCereale = 60;
-    } else if (legumineuse.value) {
-      qtyLaitier = 120;
-      qtyLegumineuse = 50;
-    } else {
-      // Produit laitier / œuf seul
-      const prot100g = parseFloat(dOpt.dataset.prot);
-      qtyLaitier = Math.round((20 / prot100g) * 100);
-    }
-  } 
-  // CAS 2 : Association Végétale pure (Céréale + Légumineuse)
-  else if (cOpt.value && lOpt.value) {
-    // Calcul de l'équilibre parfait pour combler Lysine et Méthionine
-    const cLys = parseFloat(cOpt.dataset.lys) / 100;
-    const cMet = parseFloat(cOpt.dataset.met) / 100;
-    const lLys = parseFloat(lOpt.dataset.lys) / 100;
-    const lMet = parseFloat(lOpt.dataset.met) / 100;
-
-    // Résolution d'équation simplifiée pour ratio idéal (~60% Céréales crues / 40% Légumineuses sèches)
+    qualityScore = 100;
+    if (cOpt.value && lOpt.value) { qtyLaitier = 100; qtyCereale = 50; qtyLegumineuse = 40; }
+    else if (cOpt.value) { qtyLaitier = 120; qtyCereale = 60; }
+    else if (lOpt.value) { qtyLaitier = 120; qtyLegumineuse = 50; }
+    else { qtyLaitier = Math.round((20 / parseFloat(dOpt.dataset.prot)) * 100); }
+  } else if (cOpt.value && lOpt.value) {
+    qualityScore = 95;
     qtyCereale = 65; 
     qtyLegumineuse = 45; 
-  } 
-  // CAS 3 : Un seul aliment végétal sélectionné
-  else if (cOpt.value) {
-    const prot100g = parseFloat(cOpt.dataset.prot);
-    qtyCereale = Math.round((20 / prot100g) * 100);
+  } else if (cOpt.value) {
+    qtyCereale = Math.round((20 / parseFloat(cOpt.dataset.prot)) * 100);
   } else if (lOpt.value) {
-    const prot100g = parseFloat(lOpt.dataset.prot);
-    qtyLegumineuse = Math.round((20 / prot100g) * 100);
+    qtyLegumineuse = Math.round((20 / parseFloat(lOpt.dataset.prot)) * 100);
   }
 
-  // Calcul du bilan total final
+  // Totaux
   const items = [
-    { opt: cOpt, qty: qtyCereale, unit: 'g (cru)' },
-    { opt: lOpt, qty: qtyLegumineuse, unit: 'g (sec/cru)' },
-    { opt: dOpt, qty: qtyLaitier, unit: 'g / ml' },
-    { opt: vOpt, qty: qtyLegume, unit: 'g' }
+    { opt: cOpt, qty: qtyCereale, name: "Céréale" },
+    { opt: lOpt, qty: qtyLegumineuse, name: "Légumineuse" },
+    { opt: dOpt, qty: qtyLaitier, name: "Produit laitier" },
+    { opt: vOpt, qty: qtyLegume, name: "Légume" }
   ];
 
-  let totalProt = currentProt;
-  let totalCal = currentCal;
-  let totalB12 = currentB12;
-
-  const listEl = document.getElementById('quantities-list');
-  listEl.innerHTML = '';
+  let totalProt = 0, totalCal = 0, totalB12 = 0;
+  let details = [];
 
   items.forEach(item => {
     if (item.opt && item.opt.value && item.qty > 0) {
@@ -98,26 +58,44 @@ function ajusterRepas() {
       totalProt += p;
       totalCal += c;
       totalB12 += b;
-
-      const li = document.createElement('li');
-      li.innerHTML = `<strong>${item.opt.text.split('(')[0].trim()}</strong> : <span class="qty-highlight">${item.qty} ${item.unit}</span> (${Math.round(p)}g prot / ${Math.round(c)} kcal)`;
-      listEl.appendChild(li);
+      details.push(`${item.qty}g de ${item.opt.text}`);
     }
   });
 
-  // Affichage des statistiques
+  // Remplissage interface (Design d'origine)
   document.getElementById('total-protein').innerText = Math.round(totalProt) + "g";
+  document.getElementById('quality-score').innerText = qualityScore + "%";
   document.getElementById('total-calories').innerText = Math.round(totalCal) + " kcal";
-  document.getElementById('total-b12').innerText = totalB12.toFixed(1) + " µg";
 
-  const adviceEl = document.getElementById('profile-advice');
-  if (cOpt.value && lOpt.value || dOpt.value) {
-    adviceEl.innerText = "✅ Profil complet atteint ! Ce dosage garantit une valeur biologique optimale (équivalente à de la viande) tout en minimisant l'excès calorique.";
+  const resultTitle = document.getElementById('result-title');
+  const resultText = document.getElementById('result-text');
+  const adviceEl = document.getElementById('portion-advice-text');
+  const b12El = document.getElementById('b12-status-text');
+
+  if (qualityScore >= 90) {
+    resultTitle.innerText = "🏆 Équivalent Viande Atteint !";
+    resultTitle.style.color = "#2e7d32";
+    resultText.innerText = "Portions optimales calculées : " + details.join(" + ");
+    adviceEl.innerText = "✅ Profil aminé complet : la valeur biologique de ce repas égale parfaitement celle d'une pièce de viande.";
     adviceEl.style.color = "#2e7d32";
   } else {
-    adviceEl.innerText = "⚠️ Attention : Sans association (Céréale + Légumineuse) ni produit laitier, le profil en acides aminés reste déséquilibré même si la dose de protéines est atteinte.";
+    resultTitle.innerText = "⚠️ Repas déséquilibré en acides aminés";
+    resultTitle.style.color = "#ed6c02";
+    resultText.innerText = "Portions proposées : " + details.join(" + ");
+    adviceEl.innerText = "💡 Astuce : Associez une céréale et une légumineuse (ou un produit laitier) pour atteindre 100% de valeur biologique.";
     adviceEl.style.color = "#ed6c02";
   }
 
-  document.getElementById('result').style.display = 'block';
+  if (totalB12 >= 2.5) {
+    b12El.innerText = `🎯 Vitamine B12 : ${totalB12.toFixed(1)} µg (Besoins du jour totalement couverts !).`;
+    b12El.style.color = "#2e7d32";
+  } else if (totalB12 > 0) {
+    b12El.innerText = `👍 Vitamine B12 : ${totalB12.toFixed(1)} µg (Apport partiel).`;
+    b12El.style.color = "#ed6c02";
+  } else {
+    b12El.innerText = "⚠️ Vitamine B12 : 0 µg. Pensez à compléter.";
+    b12El.style.color = "#d32f2f";
+  }
+
+  document.getElementById('result').style.display = "block";
 }
