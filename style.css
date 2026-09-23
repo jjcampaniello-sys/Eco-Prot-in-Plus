@@ -1,0 +1,153 @@
+:root {
+  --primary: #2e7d32;
+  --primary-light: #e8f5e9;
+  --secondary: #ed6c02;
+  --bg: #f8f9fa;
+  --card-bg: #ffffff;
+  --text: #333333;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  margin: 0;
+  padding: 20px;
+}
+
+.container {
+  max-width: 850px;
+  margin: 0 auto;
+  background: var(--card-bg);
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+h1 {
+  color: var(--primary);
+  text-align: center;
+  margin-bottom: 5px;
+}
+
+.subtitle {
+  text-align: center;
+  color: #666;
+  margin-bottom: 25px;
+}
+
+.grid-select {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+.select-group {
+  display: flex;
+  flex-direction: column;
+}
+
+label {
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: var(--primary);
+}
+
+.label-b12 {
+  color: var(--secondary);
+}
+
+select, input[type="number"] {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.portion-inputs {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+button {
+  width: 100%;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  padding: 14px;
+  font-size: 1.1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 10px;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background-color: #1b5e20;
+}
+
+.result-card {
+  margin-top: 25px;
+  padding: 20px;
+  border-radius: 8px;
+  background-color: var(--primary-light);
+  border-left: 5px solid var(--primary);
+  display: none;
+}
+
+.result-card h2 {
+  margin-top: 0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin: 15px 0;
+}
+
+.stat-box {
+  background: #ffffff;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: var(--primary);
+}
+
+.stat-unit {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.status-msg {
+  font-weight: bold;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.b12-alert {
+  margin-top: 25px;
+  padding: 15px;
+  background-color: #fff3e0;
+  border-left: 5px solid var(--secondary);
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.b12-alert h3 {
+  margin-top: 0;
+  color: var(--secondary);
+}
