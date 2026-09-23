@@ -9,7 +9,7 @@ function calculerAssoc() {
   const legumeSelect = document.getElementById('legume');
   const b12Select = document.getElementById('b12-source');
 
-  // Quantités saisies par l'utilisateur
+  // Quantités initiales de l'utilisateur
   let qtyCereale = parseFloat(document.getElementById('qty-cereale').value) || 0;
   let qtyLegumineuse = parseFloat(document.getElementById('qty-legumineuse').value) || 0;
   let qtyLaitier = parseFloat(document.getElementById('qty-laitier').value) || 0;
@@ -21,36 +21,78 @@ function calculerAssoc() {
     return;
   }
 
+  // Taux de protéines pour 100g de chaque ingrédient sélectionné
+  const prot100Cereale = parseFloat(cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.prot || 0);
+  const prot100Legumineuse = parseFloat(legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.prot || 0);
+  const prot100Laitier = parseFloat(laitierSelect.options[laitierSelect.selectedIndex]?.dataset.prot || 0);
+  const prot100Legume = parseFloat(legumeSelect.options[legumeSelect.selectedIndex]?.dataset.prot || 0);
+  const prot100B12 = parseFloat(b12Select.options[b12Select.selectedIndex]?.dataset.prot || 0);
+
   const isCerealeComplete = cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.complete === "true";
   const isLegumineuseComplete = legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.complete === "true";
-  const isLaitierComplete = laitierSelect.options[laitierSelect.selectedIndex]?.dataset.complete === "true";
 
-  const hasCereale = qtyCereale > 0 && cerealeSelect.value !== "";
-  const hasLegumineuse = legumineuseSelect.value !== "";
+  // Protéines apportées par les aliments annexes (œuf, produits laitiers, légumes, compléments)
+  const protAnnexes = (prot100Laitier * qtyLaitier) / 100 + 
+                      (prot100Legume * qtyLegume) / 100 + 
+                      (prot100B12 * qtyB12) / 100;
 
-  // 1. AJUSTEMENT AUTOMATIQUE DES QUANTITÉS
-  // Si une céréale et une légumineuse incomplètes sont choisies, la quantité de légumineuse 
-  // est ajustée pour respecter le ratio d'équilibre en acides aminés (~65% du poids de la céréale).
-  if (hasCereale && hasLegumineuse && !isCerealeComplete && !isLegumineuseComplete) {
-    qtyLegumineuse = Math.round(qtyCereale * 0.65);
-    document.getElementById('qty-legumineuse').value = qtyLegumineuse;
+  // Cible de référence : 20g de protéines complètes (équivalent ~100g de viande)
+  const CIBLE_PROT_VIANDE = 20.0;
+
+  // AJUSTEMENT AUTOMATIQUE DES QUANTITÉS POUR ÉGALER LA VIANDE
+  if (cerealeSelect.value !== "" && legumineuseSelect.value !== "" && !isCerealeComplete && !isLegumineuseComplete) {
+    
+    // Si l'utilisateur n'a saisi aucune quantité, on applique une portion standard basée sur la céréale (ex: 80g)
+    if (qtyCereale === 0) qtyCereale = 80;
+
+    // Pour un équilibre idéal en acides aminés (Lysine / Méthionine),
+    // le ratio massique idéal est d'environ 1 portion de céréale pour 0.65 portion de légumineuse.
+    // Protéines fournies par 1g de céréale + 0.65g de légumineuse :
+    const protParGrammeCereale = (prot100Cereale / 100) + (0.65 * prot100Legumineuse / 100);
+
+    // Besoin en protéines restant à couvrir pour atteindre l'équivalent viande (20g)
+    const protResteACouvrir = Math.max(0, CIBLE_PROT_VIANDE - protAnnexes);
+
+    if (protParGrammeCereale > 0) {
+      // Ajustement des deux quantités pour équilibrer le profil AMINÉ ET le TOTAL PROTÉIQUE
+      qtyCereale = Math.round(protResteACouvrir / protParGrammeCereale);
+      qtyLegumineuse = Math.round(qtyCereale * 0.65);
+
+      // Mise à jour des champs de saisie dans l'interface
+      document.getElementById('qty-cereale').value = qtyCereale;
+      document.getElementById('qty-legumineuse').value = qtyLegumineuse;
+    }
+
+  } else if (cerealeSelect.value !== "" && (qtyCereale > 0 || qtyLegumineuse === 0)) {
+    // Si une seule source incomplète est choisie (ex. seulement céréale), on ajuste sa quantité pour atteindre la cible
+    if (prot100Cereale > 0) {
+      const protReste = Math.max(0, CIBLE_PROT_VIANDE - protAnnexes);
+      qtyCereale = Math.round((protReste * 100) / prot100Cereale);
+      document.getElementById('qty-cereale').value = qtyCereale;
+    }
+  } else if (legumineuseSelect.value !== "" && qtyLegumineuse > 0) {
+    if (prot100Legumineuse > 0) {
+      const protReste = Math.max(0, CIBLE_PROT_VIANDE - protAnnexes);
+      qtyLegumineuse = Math.round((protReste * 100) / prot100Legumineuse);
+      document.getElementById('qty-legumineuse').value = qtyLegumineuse;
+    }
   }
 
-  // 2. CALCUL DES PROTÉINES TOTALES (g)
-  const protCereale = (parseFloat(cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.prot || 0) * qtyCereale) / 100;
-  const protLegumineuse = (parseFloat(legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.prot || 0) * qtyLegumineuse) / 100;
-  const protLaitier = (parseFloat(laitierSelect.options[laitierSelect.selectedIndex]?.dataset.prot || 0) * qtyLaitier) / 100;
-  const protLegume = (parseFloat(legumeSelect.options[legumeSelect.selectedIndex]?.dataset.prot || 0) * qtyLegume) / 100;
-  const protB12 = (parseFloat(b12Select.options[b12Select.selectedIndex]?.dataset.prot || 0) * qtyB12) / 100;
+  // 1. CALCUL DES PROTÉINES TOTALES FINALES (g)
+  const protCereale = (prot100Cereale * qtyCereale) / 100;
+  const protLegumineuse = (prot100Legumineuse * qtyLegumineuse) / 100;
+  const protLaitier = (prot100Laitier * qtyLaitier) / 100;
+  const protLegume = (prot100Legume * qtyLegume) / 100;
+  const protB12 = (prot100B12 * qtyB12) / 100;
 
   const totalProt = parseFloat((protCereale + protLegumineuse + protLaitier + protLegume + protB12).toFixed(1));
 
-  // 3. CALCUL DE LA VITAMINE B12 (µg)
+  // 2. CALCUL DE LA VITAMINE B12 (µg)
   const b12Laitier = (parseFloat(laitierSelect.options[laitierSelect.selectedIndex]?.dataset.b12 || 0) * qtyLaitier) / 100;
   const b12Source = (parseFloat(b12Select.options[b12Select.selectedIndex]?.dataset.b12 || 0) * qtyB12) / 100;
   const totalB12 = parseFloat((b12Laitier + b12Source).toFixed(2));
 
-  // 4. CALCUL DES CALORIES TOTALES (kcal)
+  // 3. CALCUL DES CALORIES TOTALES (kcal)
   const calCereale = (parseFloat(cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.cal || 0) * qtyCereale) / 100;
   const calLegumineuse = (parseFloat(legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.cal || 0) * qtyLegumineuse) / 100;
   const calLaitier = (parseFloat(laitierSelect.options[laitierSelect.selectedIndex]?.dataset.cal || 0) * qtyLaitier) / 100;
@@ -59,25 +101,16 @@ function calculerAssoc() {
 
   const totalCal = Math.round(calCereale + calLegumineuse + calLaitier + calLegume + calB12);
 
-  // 5. ÉVALUATION RIGOUREUSE DE LA VALEUR BIOLOGIQUE (VS PORTION DE VIANDE ~18g-20g PROT)
-  let qualityScore = 0;
-  const isComplementary = (hasCereale && qtyLegumineuse > 0);
-  const hasCompleteProteinSource = isLaitierComplete || isCerealeComplete || isLegumineuseComplete || isComplementary;
+  // 4. ÉVALUATION DE LA VALEUR BIOLOGIQUE (SCORE %)
+  const hasAssociation = qtyCereale > 0 && qtyLegumineuse > 0;
+  const isCompleteSource = (protLaitier >= 8) || isCerealeComplete || isLegumineuseComplete;
 
-  if (totalProt >= 18) {
-    // Si la dose protéique cible d'un repas principal est atteinte :
-    qualityScore = hasCompleteProteinSource ? 100 : 65;
-  } else if (totalProt > 0) {
-    // Si la dose est inférieure à une portion de viande, le score est proportionnel à la quantité atteinte
-    let baseRatio = (totalProt / 18);
-    if (hasCompleteProteinSource) {
-      qualityScore = Math.min(100, Math.round(baseRatio * 100));
-    } else {
-      qualityScore = Math.min(65, Math.round(baseRatio * 65));
-    }
+  let qualityScore = 60;
+  if (hasAssociation || isCompleteSource) {
+    qualityScore = 100; // Profil aminé complet
   }
 
-  // 6. AFFICHAGE DANS L'INTERFACE
+  // 5. AFFICHAGE DANS L'INTERFACE
   document.getElementById('total-protein').innerText = totalProt;
   document.getElementById('quality-score').innerText = qualityScore + "%";
   document.getElementById('total-b12').innerText = totalB12;
@@ -88,24 +121,19 @@ function calculerAssoc() {
   const portionAdviceText = document.getElementById('portion-advice-text');
   const b12StatusText = document.getElementById('b12-status-text');
 
-  const effectiveProt = Math.round(totalProt * (qualityScore / 100));
-
-  if (qualityScore >= 90) {
-    resultTitle.innerText = "🏆 Équivalent Viande Atteint !";
-    resultText.innerText = "L'association ET les quantités sont suffisantes pour égaler une portion de viande (~100g).";
-  } else if (totalProt < 12) {
-    resultTitle.innerText = "⚠️ Quantité insuffisante";
-    resultText.innerText = "Même avec la bonne association d'acides aminés, les doses saisies sont trop faibles pour égaler une portion de viande.";
+  if (qualityScore === 100 && totalProt >= 18) {
+    resultTitle.innerText = "🎯 Équivalent Viande Ajusté !";
+    resultText.innerText = `Quantités ajustées (${qtyCereale}g / ${qtyLegumineuse}g) pour obtenir exactement 20g de protéines complètes à haute valeur biologique.`;
   } else {
-    resultTitle.innerText = "⚠️ Profil aminé ou quantité incomplète";
-    resultText.innerText = "Pensez à associer une céréale et une légumineuse en quantités suffisantes.";
+    resultTitle.innerText = "⚠️ Association partielle";
+    resultText.innerText = "Ajoutez une légumineuse pour associer avec votre céréale et obtenir un profil aminé optimal.";
   }
 
-  if (effectiveProt >= 18) {
-    portionAdviceText.innerText = `🍗 Équivalent viande atteint ! Vous obtenez ${totalProt}g de protéines complètes à haute valeur biologique.`;
+  if (totalProt >= 18) {
+    portionAdviceText.innerText = `🍗 Dose parfaite : Vous obtenez ${totalProt}g de protéines, équivalent nutritionnel d'un steak de viande.`;
     portionAdviceText.style.color = "#2e7d32";
   } else {
-    portionAdviceText.innerText = `💡 En dessous d'une portion de viande : Vos protéines assimilables (${effectiveProt}g) sont inférieures à la cible (~18-20g).`;
+    portionAdviceText.innerText = `💡 Dose légère (${totalProt}g de protéines). Considérez augmenter les portions si c'est un repas principal.`;
     portionAdviceText.style.color = "#ed6c02";
   }
 
