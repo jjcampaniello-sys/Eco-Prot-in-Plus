@@ -70,15 +70,21 @@ function calculerAssoc() {
       qtyCereale = Math.round((protReste * 100) / prot100Cereale);
       document.getElementById('qty-cereale').value = qtyCereale;
     }
+} else if (cerealeSelect.value !== "" && (qtyCereale > 0 || qtyLegumineuse === 0)) {
+    // Une seule source incomplète, ou céréale + légumineuse complète : on déduit ce que la légumineuse apporte déjà
+    if (prot100Cereale > 0) {
+      const protLegumineuseSaisie = (prot100Legumineuse * qtyLegumineuse) / 100;
+      const protReste = Math.max(0, CIBLE_PROT_VIANDE - protAnnexes - protLegumineuseSaisie);
+      qtyCereale = Math.round((protReste * 100) / prot100Cereale);
+      document.getElementById('qty-cereale').value = qtyCereale;
+    }
   } else if (legumineuseSelect.value !== "" && qtyLegumineuse > 0) {
     if (prot100Legumineuse > 0) {
-      const protLegumineuseSaisie = (prot100Legumineuse * qtyLegumineuse) / 100;
-const protReste = Math.max(0, CIBLE_PROT_VIANDE - protAnnexes - protLegumineuseSaisie);
-qtyCereale = Math.round((protReste * 100) / prot100Cereale);
+      const protReste = Math.max(0, CIBLE_PROT_VIANDE - protAnnexes);
+      qtyLegumineuse = Math.round((protReste * 100) / prot100Legumineuse);
       document.getElementById('qty-legumineuse').value = qtyLegumineuse;
     }
   }
-
   // 1. CALCUL DES PROTÉINES TOTALES FINALES (g)
   const protCereale = (prot100Cereale * qtyCereale) / 100;
   const protLegumineuse = (prot100Legumineuse * qtyLegumineuse) / 100;
@@ -103,7 +109,7 @@ qtyCereale = Math.round((protReste * 100) / prot100Cereale);
   const totalCal = Math.round(calCereale + calLegumineuse + calLaitier + calLegume + calB12);
 
   // 4. ÉVALUATION DE LA VALEUR BIOLOGIQUE (SCORE %)
-  const hasAssociation = qtyCereale > 0 && qtyLegumineuse > 0;
+  const hasAssociation = cerealeSelect.value !== "" && legumineuseSelect.value !== "" && qtyCereale > 0 && qtyLegumineuse > 0;
   const isCompleteSource = (protLaitier >= 8) || isCerealeComplete || isLegumineuseComplete;
 
   let qualityScore = 60;
@@ -156,4 +162,6 @@ if (totalB12 >= B12_REF_JOUR) {
 } else {
   b12StatusText.innerText = "⚠️ Vitamine B12 : 0 µg. Repas sans B12.";
   b12StatusText.style.color = "#d32f2f";
+}
+document.getElementById('result').style.display = "block";
 }
