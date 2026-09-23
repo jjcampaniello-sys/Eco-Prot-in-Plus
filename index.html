@@ -3,125 +3,90 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Calculateur de Repas & Qualité Protéique</title>
+  <title>Générateur d'Assiette Équilibrée</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="container">
-  <h1>Calculateur d'Équivalence Protéique</h1>
-  <p class="subtitle">Analyse quantitative ET qualitative (Profil type viande)</p>
+  <h1>Ajusteur Automatique de Repas</h1>
+  <p class="subtitle">Sélectionnez vos ingrédients : l'application calcule la portion exacte pour égaler 100g de viande (~20g de protéines complètes).</p>
 
   <form id="meal-form">
     <div class="grid-select">
-      <!-- Céréales crus -->
+      <!-- Céréales -->
       <div class="select-group">
         <label for="cereale">Céréales (poids CRU) :</label>
         <select id="cereale">
-          <option value="">-- Aucun --</option>
-          <option value="riz" data-prot="7.0" data-b12="0" data-cal="360" data-lysine="low">Riz cru (7g prot / 100g)</option>
-          <option value="quinoa" data-prot="14.0" data-b12="0" data-cal="368" data-complete="true">Quinoa cru (14g prot - Profil complet) ★</option>
-          <option value="pates" data-prot="12.5" data-b12="0" data-cal="350" data-lysine="low">Pâtes crues (12.5g prot / 100g)</option>
-          <option value="avoine" data-prot="13.5" data-b12="0" data-cal="389" data-lysine="low">Flocons d'avoine (13.5g prot / 100g)</option>
-          <option value="sarrasin" data-prot="13.0" data-b12="0" data-cal="343" data-complete="true">Sarrasin cru (13g prot - Profil complet) ★</option>
+          <option value="">-- Aucune --</option>
+          <option value="riz" data-prot="7.0" data-lys="220" data-met="180" data-cal="360">Riz cru</option>
+          <option value="quinoa" data-prot="14.0" data-lys="600" data-met="300" data-cal="368">Quinoa cru (Complet)</option>
+          <option value="pates" data-prot="12.5" data-lys="300" data-met="190" data-cal="350">Pâtes crues</option>
+          <option value="avoine" data-prot="13.5" data-lys="500" data-met="230" data-cal="389">Flocons d'avoine</option>
         </select>
-        <div class="portion-inputs">
-          <input type="number" id="qty-cereale" value="60" min="0">
-          <span>g cru</span>
-        </div>
       </div>
 
       <!-- Légumineuses & Soja -->
       <div class="select-group">
         <label for="legumineuse">Légumineuses / Soja :</label>
         <select id="legumineuse">
-          <option value="">-- Aucun --</option>
-          <option value="lentilles" data-prot="25.0" data-b12="0" data-cal="350" data-methio="low">Lentilles sèches (25g prot / 100g)</option>
-          <option value="pois_chiches" data-prot="19.0" data-b12="0" data-cal="364" data-methio="low">Pois chiches secs (19g prot / 100g)</option>
-          <option value="tofu" data-prot="12.0" data-b12="0" data-cal="144" data-complete="true">Tofu frais (12g prot - Profil complet) ★</option>
-          <option value="tempeh" data-prot="19.0" data-b12="0" data-cal="193" data-complete="true">Tempeh (19g prot - Profil complet) ★</option>
+          <option value="">-- Aucune --</option>
+          <option value="lentilles" data-prot="25.0" data-lys="1700" data-met="220" data-cal="350">Lentilles sèches</option>
+          <option value="pois_chiches" data-prot="19.0" data-lys="1300" data-met="250" data-cal="364">Pois chiches secs</option>
+          <option value="tofu" data-prot="12.0" data-lys="800" data-met="180" data-cal="144">Tofu frais (Complet)</option>
         </select>
-        <div class="portion-inputs">
-          <input type="number" id="qty-legumineuse" value="50" min="0">
-          <span>g</span>
-        </div>
       </div>
     </div>
 
     <div class="grid-select">
       <!-- Produits Laitiers & Œufs -->
       <div class="select-group">
-        <label for="laitier-source">Lait, Yaourts, Skyr, Œufs :</label>
-        <select id="laitier-source">
+        <label for="laitier">Produits Laitiers / Œufs :</label>
+        <select id="laitier">
           <option value="">-- Aucun --</option>
-          <option value="skyr" data-prot="10.0" data-b12="0.3" data-cal="57" data-complete="true">Skyr / Max Protéines (10g prot / 0.3µg B12 / 100g) ★</option>
-          <option value="fromage_blanc" data-prot="8.0" data-b12="0.25" data-cal="50" data-complete="true">Fromage blanc (8g prot / 0.25µg B12 / 100g) ★</option>
-          <option value="yaourt_grec" data-prot="6.0" data-b12="0.3" data-cal="120" data-complete="true">Yaourt grec (6g prot / 0.3µg B12 / 100g) ★</option>
-          <option value="oeuf" data-prot="13.0" data-b12="1.1" data-cal="155" data-complete="true">Œuf entier (13g prot / 1.1µg B12 / 100g) ★</option>
-          <option value="lait_vache" data-prot="3.3" data-b12="0.4" data-cal="62" data-complete="true">Lait de vache (3.3g prot / 0.4µg B12 / 100ml) ★</option>
-          <option value="fromage_dur" data-prot="25.0" data-b12="1.5" data-cal="380" data-complete="true">Fromage pâte dure (25g prot / 1.5µg B12 / 100g) ★</option>
+          <option value="skyr" data-prot="10.0" data-lys="800" data-met="270" data-cal="57" data-b12="0.3">Skyr / Fromage blanc 0%</option>
+          <option value="yaourt_grec" data-prot="6.0" data-lys="480" data-met="160" data-cal="120" data-b12="0.3">Yaourt grec</option>
+          <option value="oeuf" data-prot="13.0" data-lys="900" data-met="390" data-cal="155" data-b12="1.1">Œuf entier</option>
+          <option value="lait_vache" data-prot="3.3" data-lys="260" data-met="85" data-cal="62" data-b12="0.4">Lait de vache</option>
         </select>
-        <div class="portion-inputs">
-          <input type="number" id="qty-laitier" value="140" min="0">
-          <span>g / ml</span>
-        </div>
       </div>
 
       <!-- Légumes -->
       <div class="select-group">
-        <label for="legume">Légumes (Brocolis, Épinards...) :</label>
+        <label for="legume">Légumes d'accompagnement :</label>
         <select id="legume">
           <option value="">-- Aucun --</option>
-          <option value="brocoli" data-prot="2.8" data-b12="0" data-cal="34">Brocoli (2.8g prot / 100g)</option>
-          <option value="epinard" data-prot="2.9" data-b12="0" data-cal="23">Épinards (2.9g prot / 100g)</option>
-          <option value="petits_pois" data-prot="5.4" data-b12="0" data-cal="81">Petits pois (5.4g prot / 100g)</option>
-          <option value="legumes_mix" data-prot="1.5" data-b12="0" data-cal="30">Légumes variés (1.5g prot / 100g)</option>
+          <option value="brocoli" data-prot="2.8" data-lys="160" data-met="50" data-cal="34">Brocoli</option>
+          <option value="epinard" data-prot="2.9" data-lys="170" data-met="55" data-cal="23">Épinards</option>
+          <option value="legumes_mix" data-prot="1.5" data-lys="80" data-met="25" data-cal="30">Légumes variés</option>
         </select>
-        <div class="portion-inputs">
-          <input type="number" id="qty-legume" value="150" min="0">
-          <span>g</span>
-        </div>
       </div>
     </div>
 
-    <!-- Complément B12 / Assaisonnement -->
-    <div class="select-group" style="margin-bottom: 15px;">
-      <label for="b12-source" style="color: #ed6c02;">Complément / Levure B12 :</label>
-      <select id="b12-source">
-        <option value="">-- Aucun --</option>
-        <option value="levure_b12" data-prot="45" data-b12="44" data-cal="325">Levure maltée B12 (45g prot / 44µg B12 / 100g)</option>
-      </select>
-      <div class="portion-inputs" style="max-width: 300px;">
-        <input type="number" id="qty-b12" value="5" min="0">
-        <span>g</span>
-      </div>
-    </div>
-
-    <button type="button" id="btn-submit">Analyser la qualité réelle du repas</button>
+    <button type="button" id="btn-submit">Ajuster et calculer les portions idéales</button>
   </form>
 
   <!-- Résultat -->
   <div id="result" class="result-card">
-    <h2 id="result-title"></h2>
-    <p id="result-text"></p>
+    <h2>📋 Quantités Recommandées pour votre Assiette</h2>
+    <ul id="quantities-list" class="qty-list"></ul>
 
     <div class="stats-grid">
       <div class="stat-box">
-        <span class="stat-value" id="total-protein">0</span>
-        <span class="stat-unit">g Protéines Totales</span>
+        <span class="stat-value" id="total-protein">0g</span>
+        <span class="stat-unit">Protéines Nettes Assimilables</span>
       </div>
       <div class="stat-box">
-        <span class="stat-value" id="quality-score">0%</span>
-        <span class="stat-unit">Qualité Biologique (Vs Viande)</span>
+        <span class="stat-value" id="total-calories">0</span>
+        <span class="stat-unit">Calories Totales (kcal)</span>
       </div>
       <div class="stat-box stat-full">
-        <span class="stat-value" id="total-b12">0</span>
-        <span class="stat-unit">µg Vitamine B12</span>
+        <span class="stat-value" id="total-b12">0 µg</span>
+        <span class="stat-unit">Vitamine B12</span>
       </div>
     </div>
 
-    <p id="portion-advice-text" class="status-msg"></p>
-    <p id="b12-status-text" class="status-msg"></p>
+    <p id="profile-advice" class="status-msg"></p>
   </div>
 </div>
 
