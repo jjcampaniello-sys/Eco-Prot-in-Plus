@@ -1,100 +1,113 @@
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('btn-submit').addEventListener('click', ajusterEtCalculer);
+  document.getElementById('btn-submit').addEventListener('click', calculerAssoc);
 });
 
-function ajusterEtCalculer() {
-  const cereale = document.getElementById('cereale');
-  const legumineuse = document.getElementById('legumineuse');
-  const laitier = document.getElementById('laitier');
-  const legume = document.getElementById('legume');
+function calculerAssoc() {
+  const cerealeSelect = document.getElementById('cereale');
+  const legumineuseSelect = document.getElementById('legumineuse');
+  const laitierSelect = document.getElementById('laitier');
+  const legumeSelect = document.getElementById('legume');
+  const b12Select = document.getElementById('b12-source');
 
-  const cOpt = cereale.options[cereale.selectedIndex];
-  const lOpt = legumineuse.options[legumineuse.selectedIndex];
-  const dOpt = laitier.options[laitier.selectedIndex];
-  const vOpt = legume.options[legume.selectedIndex];
+  const qtyCereale = parseFloat(document.getElementById('qty-cereale').value) || 0;
+  const qtyLegumineuse = parseFloat(document.getElementById('qty-legumineuse').value) || 0;
+  const qtyLaitier = parseFloat(document.getElementById('qty-laitier').value) || 0;
+  const qtyLegume = parseFloat(document.getElementById('qty-legume').value) || 0;
+  const qtyB12 = parseFloat(document.getElementById('qty-b12').value) || 0;
 
-  if (!cOpt.value && !lOpt.value && !dOpt.value && !vOpt.value) {
+  if (!cerealeSelect.value && !legumineuseSelect.value && !laitierSelect.value && !legumeSelect.value && !b12Select.value) {
     alert("Veuillez choisir au moins un aliment.");
     return;
   }
 
-  let qtyCereale = 0, qtyLegumineuse = 0, qtyLaitier = 0, qtyLegume = vOpt.value ? 150 : 0;
-  let qualityScore = 60;
+  // Calcul Protéines (g)
+  const protCereale = (parseFloat(cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.prot || 0) * qtyCereale) / 100;
+  const protLegumineuse = (parseFloat(legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.prot || 0) * qtyLegumineuse) / 100;
+  const protLaitier = (parseFloat(laitierSelect.options[laitierSelect.selectedIndex]?.dataset.prot || 0) * qtyLaitier) / 100;
+  const protLegume = (parseFloat(legumeSelect.options[legumeSelect.selectedIndex]?.dataset.prot || 0) * qtyLegume) / 100;
+  const protB12 = (parseFloat(b12Select.options[b12Select.selectedIndex]?.dataset.prot || 0) * qtyB12) / 100;
 
-  // Calcul intelligent des portions cibles (~20g prot)
-  if (dOpt.value) {
-    qualityScore = 100;
-    if (cOpt.value && lOpt.value) { qtyLaitier = 100; qtyCereale = 50; qtyLegumineuse = 40; }
-    else if (cOpt.value) { qtyLaitier = 120; qtyCereale = 60; }
-    else if (lOpt.value) { qtyLaitier = 120; qtyLegumineuse = 50; }
-    else { qtyLaitier = Math.round((20 / parseFloat(dOpt.dataset.prot)) * 100); }
-  } else if (cOpt.value && lOpt.value) {
-    qualityScore = 95;
-    qtyCereale = 65; 
-    qtyLegumineuse = 45; 
-  } else if (cOpt.value) {
-    qtyCereale = Math.round((20 / parseFloat(cOpt.dataset.prot)) * 100);
-  } else if (lOpt.value) {
-    qtyLegumineuse = Math.round((20 / parseFloat(lOpt.dataset.prot)) * 100);
+  const totalProt = parseFloat((protCereale + protLegumineuse + protLaitier + protLegume + protB12).toFixed(1));
+
+  // Calcul B12 (µg)
+  const b12Laitier = (parseFloat(laitierSelect.options[laitierSelect.selectedIndex]?.dataset.b12 || 0) * qtyLaitier) / 100;
+  const b12Source = (parseFloat(b12Select.options[b12Select.selectedIndex]?.dataset.b12 || 0) * qtyB12) / 100;
+
+  const totalB12 = parseFloat((b12Laitier + b12Source).toFixed(2));
+
+  // Calcul Calories (kcal)
+  const calCereale = (parseFloat(cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.cal || 0) * qtyCereale) / 100;
+  const calLegumineuse = (parseFloat(legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.cal || 0) * qtyLegumineuse) / 100;
+  const calLaitier = (parseFloat(laitierSelect.options[laitierSelect.selectedIndex]?.dataset.cal || 0) * qtyLaitier) / 100;
+  const calLegume = (parseFloat(legumeSelect.options[legumeSelect.selectedIndex]?.dataset.cal || 0) * qtyLegume) / 100;
+  const calB12 = (parseFloat(b12Select.options[b12Select.selectedIndex]?.dataset.cal || 0) * qtyB12) / 100;
+
+  const totalCal = Math.round(calCereale + calLegumineuse + calLaitier + calLegume + calB12);
+
+  // EVALUATION DE LA QUALITE AMINEE
+  const isCerealeComplete = cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.complete === "true";
+  const isLegumineuseComplete = legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.complete === "true";
+  const isLaitierComplete = laitierSelect.options[laitierSelect.selectedIndex]?.dataset.complete === "true";
+
+  const hasCereale = qtyCereale > 0 && cerealeSelect.value !== "";
+  const hasLegumineuse = qtyLegumineuse > 0 && legumineuseSelect.value !== "";
+
+  let qualityScore = 60; // Valeur de base pour protéines végétales isolées
+
+  if (isLaitierComplete && protLaitier >= 8) {
+    qualityScore = 100; // Protéine animale complète en quantité suffisante
+  } else if (isCerealeComplete || isLegumineuseComplete) {
+    qualityScore = 95;  // Protéine végétale complète (Soja, Quinoa, Sarrasin)
+  } else if (hasCereale && hasLegumineuse) {
+    qualityScore = 90;  // Association Céréale + Légumineuse
+  } else if (isLaitierComplete && protLaitier > 0) {
+    qualityScore = 80;  // Un peu de produit laitier
   }
 
-  // Totaux
-  const items = [
-    { opt: cOpt, qty: qtyCereale, name: "Céréale" },
-    { opt: lOpt, qty: qtyLegumineuse, name: "Légumineuse" },
-    { opt: dOpt, qty: qtyLaitier, name: "Produit laitier" },
-    { opt: vOpt, qty: qtyLegume, name: "Légume" }
-  ];
-
-  let totalProt = 0, totalCal = 0, totalB12 = 0;
-  let details = [];
-
-  items.forEach(item => {
-    if (item.opt && item.opt.value && item.qty > 0) {
-      const p = (parseFloat(item.opt.dataset.prot) * item.qty) / 100;
-      const c = (parseFloat(item.opt.dataset.cal) * item.qty) / 100;
-      const b = (parseFloat(item.opt.dataset.b12 || 0) * item.qty) / 100;
-
-      totalProt += p;
-      totalCal += c;
-      totalB12 += b;
-      details.push(`${item.qty}g de ${item.opt.text}`);
-    }
-  });
-
-  // Remplissage interface (Design d'origine)
-  document.getElementById('total-protein').innerText = Math.round(totalProt) + "g";
+  // AFFICHAGE DES VALEURS
+  document.getElementById('total-protein').innerText = totalProt;
   document.getElementById('quality-score').innerText = qualityScore + "%";
-  document.getElementById('total-calories').innerText = Math.round(totalCal) + " kcal";
+  document.getElementById('total-b12').innerText = totalB12;
+  document.getElementById('total-calories').innerText = totalCal;
 
   const resultTitle = document.getElementById('result-title');
   const resultText = document.getElementById('result-text');
-  const adviceEl = document.getElementById('portion-advice-text');
-  const b12El = document.getElementById('b12-status-text');
+  const portionAdviceText = document.getElementById('portion-advice-text');
+  const b12StatusText = document.getElementById('b12-status-text');
 
-  if (qualityScore >= 90) {
-    resultTitle.innerText = "🏆 Équivalent Viande Atteint !";
-    resultTitle.style.color = "#2e7d32";
-    resultText.innerText = "Portions optimales calculées : " + details.join(" + ");
-    adviceEl.innerText = "✅ Profil aminé complet : la valeur biologique de ce repas égale parfaitement celle d'une pièce de viande.";
-    adviceEl.style.color = "#2e7d32";
+  // Diagnostic
+  const effectiveProt = Math.round(totalProt * (qualityScore / 100));
+
+  if (totalProt < 12) {
+    resultTitle.innerText = "⚠️ Quantité de protéines insuffisante";
+    resultText.innerText = "La dose globale est trop faible pour un repas principal (dose cible : ~20g).";
+  } else if (qualityScore >= 90) {
+    resultTitle.innerText = "✅ Excellent profil d'acides aminés !";
+    resultText.innerText = "L'association de vos aliments garantit une assimilation optimale par l'organisme.";
   } else {
-    resultTitle.innerText = "⚠️ Repas déséquilibré en acides aminés";
-    resultTitle.style.color = "#ed6c02";
-    resultText.innerText = "Portions proposées : " + details.join(" + ");
-    adviceEl.innerText = "💡 Astuce : Associez une céréale et une légumineuse (ou un produit laitier) pour atteindre 100% de valeur biologique.";
-    adviceEl.style.color = "#ed6c02";
+    resultTitle.innerText = "⚠️ Profil aminé incomplet";
+    resultText.innerText = "La quantité est là, mais le manque d'association limite l'assimilation globale des protéines.";
   }
 
-  if (totalB12 >= 2.5) {
-    b12El.innerText = `🎯 Vitamine B12 : ${totalB12.toFixed(1)} µg (Besoins du jour totalement couverts !).`;
-    b12El.style.color = "#2e7d32";
-  } else if (totalB12 > 0) {
-    b12El.innerText = `👍 Vitamine B12 : ${totalB12.toFixed(1)} µg (Apport partiel).`;
-    b12El.style.color = "#ed6c02";
+  // Équivalent viande
+  if (effectiveProt >= 18) {
+    portionAdviceText.innerText = `🍗 Équivalent viande atteint ! Vos ${totalProt}g de protéines assimilables égalent une portion de viande (~100g).`;
+    portionAdviceText.style.color = "#2e7d32";
   } else {
-    b12El.innerText = "⚠️ Vitamine B12 : 0 µg. Pensez à compléter.";
-    b12El.style.color = "#d32f2f";
+    portionAdviceText.innerText = `💡 En dessous d'une portion de viande : Vos protéines assimilables (${effectiveProt}g) sont inférieures à la cible (~20g).`;
+    portionAdviceText.style.color = "#ed6c02";
+  }
+
+  // B12
+  if (totalB12 >= 2.5) {
+    b12StatusText.innerText = "🎯 Vitamine B12 : Besoins journaliers entièrement couverts.";
+    b12StatusText.style.color = "#2e7d32";
+  } else if (totalB12 > 0) {
+    b12StatusText.innerText = "👍 Vitamine B12 : Apport partiel.";
+    b12StatusText.style.color = "#ed6c02";
+  } else {
+    b12StatusText.innerText = "⚠️ Vitamine B12 : 0 µg. Repas sans B12.";
+    b12StatusText.style.color = "#d32f2f";
   }
 
   document.getElementById('result').style.display = "block";
