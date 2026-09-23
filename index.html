@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Générateur de Plat Végétal & B12</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+  <h1>Associeur de Protéines Végétales & B12</h1>
+  <p class="subtitle">Créez un plat complet en acides aminés et avec un apport en vitamine B12</p>
+
+  <form id="meal-form">
+    <div class="grid-select">
+      <!-- Céréales -->
+      <div class="select-group">
+        <label for="cereale">Céréale / Pseudo-céréale :</label>
+        <select id="cereale">
+          <option value="">-- Choisir --</option>
+          <option value="riz" data-prot="2.7" data-b12="0">Riz cuit (2.7g prot / 100g)</option>
+          <option value="quinoa" data-prot="4.4" data-b12="0" data-complete="true">Quinoa cuit (4.4g prot / 100g) ★</option>
+          <option value="avoine" data-prot="13.5" data-b12="0">Flocons d'avoine (13.5g prot / 100g)</option>
+          <option value="ble" data-prot="5.0" data-b12="0">Pâtes / Blé cuit (5g prot / 100g)</option>
+          <option value="sarrasin" data-prot="3.4" data-b12="0" data-complete="true">Sarrasin cuit (3.4g prot / 100g) ★</option>
+        </select>
+        <div class="portion-inputs">
+          <input type="number" id="qty-cereale" value="150" min="0" placeholder="Grammes">
+          <span>g</span>
+        </div>
+      </div>
+
+      <!-- Légumineuses -->
+      <div class="select-group">
+        <label for="legumineuse">Légumineuse / Soja :</label>
+        <select id="legumineuse">
+          <option value="">-- Choisir --</option>
+          <option value="lentilles" data-prot="9.0" data-b12="0">Lentilles cuites (9g prot / 100g)</option>
+          <option value="pois_chiches" data-prot="8.9" data-b12="0">Pois chiches cuits (8.9g prot / 100g)</option>
+          <option value="haricots_rouges" data-prot="8.7" data-b12="0">Haricots rouges cuits (8.7g prot / 100g)</option>
+          <option value="tofu" data-prot="12.0" data-b12="0" data-complete="true">Tofu (12g prot / 100g) ★</option>
+          <option value="tempeh" data-prot="19.0" data-b12="0" data-complete="true">Tempeh (19g prot / 100g) ★</option>
+        </select>
+        <div class="portion-inputs">
+          <input type="number" id="qty-legumineuse" value="150" min="0" placeholder="Grammes">
+          <span>g</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-select">
+      <!-- Graines & Oléagineux -->
+      <div class="select-group">
+        <label for="graine">Graines / Oléagineux :</label>
+        <select id="graine">
+          <option value="">-- Aucun --</option>
+          <option value="courge" data-prot="30" data-b12="0">Graines de courge (30g prot / 100g)</option>
+          <option value="chia" data-prot="17" data-b12="0">Graines de chia (17g prot / 100g)</option>
+          <option value="sesame" data-prot="18" data-b12="0">Graines de sésame (18g prot / 100g)</option>
+          <option value="amandes" data-prot="21" data-b12="0">Amandes (21g prot / 100g)</option>
+        </select>
+        <div class="portion-inputs">
+          <input type="number" id="qty-graine" value="20" min="0" placeholder="Grammes">
+          <span>g</span>
+        </div>
+      </div>
+
+      <!-- Sources de B12 -->
+      <div class="select-group">
+        <label for="b12-source" class="label-b12">Ingrédient enrichi en B12 :</label>
+        <select id="b12-source">
+          <option value="">-- Aucun --</option>
+          <option value="levure_b12" data-prot="45" data-b12="44">Levure maltée enrichie en B12 (44 µg B12 / 100g)</option>
+          <option value="lait_enrichi" data-prot="3" data-b12="0.38">Lait végétal enrichi (0.38 µg B12 / 100g)</option>
+          <option value="yaourt_soja_b12" data-prot="4" data-b12="0.38">Yaourt soja enrichi (0.38 µg B12 / 100g)</option>
+          <option value="simili_carné" data-prot="18" data-b12="2.5" data-complete="true">Steak végétal enrichi B12 (2.5 µg B12 / 100g) ★</option>
+        </select>
+        <div class="portion-inputs">
+          <input type="number" id="qty-b12" value="10" min="0" placeholder="Grammes">
+          <span>g</span>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" id="btn-submit">Évaluer l'association</button>
+  </form>
+
+  <!-- Résultat -->
+  <div id="result" class="result-card">
+    <h2 id="result-title"></h2>
+    <p id="result-text"></p>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <span class="stat-value" id="total-protein">0</span>
+        <span class="stat-unit">g de Protéines</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-value" id="total-b12">0</span>
+        <span class="stat-unit">µg de Vitamine B12</span>
+      </div>
+    </div>
+
+    <p id="b12-status-text" class="status-msg"></p>
+  </div>
+
+  <!-- Note informative B12 -->
+  <div class="b12-alert">
+    <h3>📌 Rappel Nutritionnel (B12)</h3>
+    <p>
+      L'apport journalier recommandé en vitamine B12 pour un adulte est d'environ <strong>2.5 µg à 4 µg par jour</strong>.
+    </p>
+    <p>
+      Si vous ne consommez pas régulièrement d'aliments enrichis en B12 (levure enrichie, laits végétaux enrichis), une <strong>supplémentation dédiée</strong> reste la solution la plus fiable.
+    </p>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
