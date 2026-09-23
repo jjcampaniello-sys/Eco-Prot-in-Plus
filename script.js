@@ -72,8 +72,9 @@ function calculerAssoc() {
     }
   } else if (legumineuseSelect.value !== "" && qtyLegumineuse > 0) {
     if (prot100Legumineuse > 0) {
-      const protReste = Math.max(0, CIBLE_PROT_VIANDE - protAnnexes);
-      qtyLegumineuse = Math.round((protReste * 100) / prot100Legumineuse);
+      const protLegumineuseSaisie = (prot100Legumineuse * qtyLegumineuse) / 100;
+const protReste = Math.max(0, CIBLE_PROT_VIANDE - protAnnexes - protLegumineuseSaisie);
+qtyCereale = Math.round((protReste * 100) / prot100Cereale);
       document.getElementById('qty-legumineuse').value = qtyLegumineuse;
     }
   }
@@ -124,6 +125,9 @@ function calculerAssoc() {
   if (qualityScore === 100 && totalProt >= 18) {
     resultTitle.innerText = "🎯 Équivalent Viande Ajusté !";
     resultText.innerText = `Quantités ajustées (${qtyCereale}g / ${qtyLegumineuse}g) pour obtenir exactement 20g de protéines complètes à haute valeur biologique.`;
+ } else if (qualityScore === 100) {
+  resultTitle.innerText = "✅ Profil aminé complet";
+  resultText.innerText = `Profil complet, mais seulement ${totalProt}g de protéines : augmentez les portions pour égaler un steak.`;
   } else {
     resultTitle.innerText = "⚠️ Association partielle";
     resultText.innerText = "Ajoutez une légumineuse pour associer avec votre céréale et obtenir un profil aminé optimal.";
@@ -137,16 +141,19 @@ function calculerAssoc() {
     portionAdviceText.style.color = "#ed6c02";
   }
 
-  if (totalB12 >= 2.5) {
-    b12StatusText.innerText = "🎯 Vitamine B12 : Besoins journaliers entièrement couverts.";
-    b12StatusText.style.color = "#2e7d32";
-  } else if (totalB12 > 0) {
-    b12StatusText.innerText = "👍 Vitamine B12 : Apport partiel.";
-    b12StatusText.style.color = "#ed6c02";
-  } else {
-    b12StatusText.innerText = "⚠️ Vitamine B12 : 0 µg. Repas sans B12.";
-    b12StatusText.style.color = "#d32f2f";
-  }
+const B12_REF_JOUR = 4; // µg/j, référence ANSES adulte
+const pctB12 = Math.round((totalB12 / B12_REF_JOUR) * 100);
 
-  document.getElementById('result').style.display = "block";
+if (totalB12 >= B12_REF_JOUR) {
+  b12StatusText.innerText = `🎯 Vitamine B12 : ${pctB12}% de la référence journalière (4 µg). L'absorption plafonne à ~1,5–2 µg par prise : répartissez sur la journée.`;
+  b12StatusText.style.color = "#2e7d32";
+} else if (totalB12 >= 1.3) {
+  b12StatusText.innerText = `👍 Vitamine B12 : bon apport pour un repas (${pctB12}% de la référence journalière de 4 µg).`;
+  b12StatusText.style.color = "#2e7d32";
+} else if (totalB12 > 0) {
+  b12StatusText.innerText = `⚠️ Vitamine B12 : apport faible (${pctB12}% de la référence journalière). À compléter aux autres repas.`;
+  b12StatusText.style.color = "#ed6c02";
+} else {
+  b12StatusText.innerText = "⚠️ Vitamine B12 : 0 µg. Repas sans B12.";
+  b12StatusText.style.color = "#d32f2f";
 }
