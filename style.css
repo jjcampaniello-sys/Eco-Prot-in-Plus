@@ -2,6 +2,7 @@
   --primary: #2e7d32;
   --primary-light: #e8f5e9;
   --secondary: #ed6c02;
+  --accent: #0288d1;
   --bg: #f8f9fa;
   --card-bg: #ffffff;
   --text: #333333;
@@ -57,6 +58,10 @@ label {
 
 .label-b12 {
   color: var(--secondary);
+}
+
+.label-animal {
+  color: var(--accent);
 }
 
 select, input[type="number"] {
@@ -120,6 +125,11 @@ button:hover {
   box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
+.stat-full {
+  grid-column: span 2;
+  background: #f0f7ff;
+}
+
 .stat-value {
   display: block;
   font-size: 1.8rem;
@@ -132,10 +142,9 @@ button:hover {
   color: #666;
 }
 
-.status-msg {
+.status-msg, .portion-msg {
   font-weight: bold;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 6px 0;
 }
 
 .b12-alert {
