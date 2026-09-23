@@ -2,122 +2,217 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-submit').addEventListener('click', calculerAssoc);
 });
 
+/* ============================================================
+   DONNÉES ACIDES AMINÉS
+   Valeurs en mg d'acide aminé par g de protéines (moyennes de tables
+   USDA / FAO, approximatives : à affiner avec tes propres sources).
+   lys = lysine, saa = acides aminés soufrés (méthionine + cystéine)
+   ============================================================ */
+const REF_AA = { lys: 45, saa: 22 };      // profil de référence adulte FAO/WHO/UNU 2007 (≈ viande, qui le dépasse)
+const AA_DEFAUT = { lys: 55, saa: 25 };   // si un aliment n'est pas dans la table
+
+const AA = {
+  // Céréales
+  riz:              { lys: 37, saa: 35 },
+  quinoa:           { lys: 54, saa: 36 },
+  pates:            { lys: 25, saa: 40 },
+  avoine:           { lys: 41, saa: 43 },
+  sarrasin:         { lys: 50, saa: 31 },
+  // Légumineuses / soja
+  lentilles:        { lys: 69, saa: 19 },
+  lentilles_corail: { lys: 69, saa: 19 },
+  pois_chiches:     { lys: 67, saa: 24 },
+  haricots_rouges:  { lys: 63, saa: 24 },
+  haricots_blancs:  { lys: 67, saa: 22 },
+  haricots_noirs:   { lys: 69, saa: 26 },
+  pois_casses:      { lys: 72, saa: 25 },
+  feves:            { lys: 64, saa: 21 },
+  soja_graines:     { lys: 74, saa: 33 },
+  edamame:          { lys: 66, saa: 28 },
+  tofu:             { lys: 62, saa: 26 },
+  tempeh:           { lys: 55, saa: 26 },
+  // Produits laitiers / œufs
+  skyr:             { lys: 80, saa: 33 },
+  yaourt_grec:      { lys: 82, saa: 33 },
+  oeuf:             { lys: 72, saa: 52 },
+  lait_vache:       { lys: 80, saa: 34 },
+  lait_veg_b12:     { lys: 60, saa: 25 },  // supposé à base de soja
+  fromage:          { lys: 80, saa: 30 },
+  // Légumes
+  brocoli:          { lys: 60, saa: 21 },
+  epinard:          { lys: 61, saa: 29 },
+  petits_pois:      { lys: 59, saa: 20 },
+  legumes_mix:      { lys: 55, saa: 22 },
+  // Levure
+  levure_b12:       { lys: 70, saa: 22 }
+};
+
+/* ============================================================
+   OUTILS
+   ============================================================ */
+
+// Lit un ingrédient (menu + quantité). Sans sélection, la quantité compte pour 0.
+function lireIngredient(selectId, qtyId) {
+  const select = document.getElementById(selectId);
+  const opt = select.options[select.selectedIndex];
+  const key = select.value;
+  if (!key) {
+    return { key: '', nom: '', qtyId, qty: 0, prot100: 0, b12100: 0, cal100: 0, lys: 0, saa: 0 };
+  }
+  const aa = AA[key] || AA_DEFAUT;
+  return {
+    key,
+    nom: opt.text.split(' (')[0],
+    qtyId,
+    qty: parseFloat(document.getElementById(qtyId).value) || 0,
+    prot100: parseFloat(opt.dataset.prot) || 0,
+    b12100: parseFloat(opt.dataset.b12) || 0,
+    cal100: parseFloat(opt.dataset.cal) || 0,
+    lys: aa.lys,
+    saa: aa.saa
+  };
+}
+
+// Protéines totales et score aminé du repas (min lysine / soufrés, plafonné à 1)
+function profilAmine(ings) {
+  let prot = 0, lys = 0, saa = 0;
+  for (const i of ings) {
+    const p = (i.prot100 * i.qty) / 100;
+    prot += p;
+    lys += p * i.lys;
+    saa += p * i.saa;
+  }
+  if (prot === 0) return { prot: 0, scoreLys: 0, scoreSaa: 0, score: 0 };
+  const scoreLys = lys / prot / REF_AA.lys;
+  const scoreSaa = saa / prot / REF_AA.saa;
+  return { prot, scoreLys, scoreSaa, score: Math.min(1, scoreLys, scoreSaa) };
+}
+
+// Trouve les quantités (entières) les plus proches de x0 qui respectent toutes les
+// contraintes linéaires  n·x + c >= 0. Renvoie null si aucune solution.
+function resoudre(x0, contraintes) {
+  const EPS = 1e-7;
+  const dim = x0.length;
+  const ok = x => contraintes.every(k => k.n.reduce((s, ni, i) => s + ni * x[i], k.c) >= -EPS);
+  const dist = x => Math.hypot(...x.map((v, i) => v - x0[i]));
+
+  if (ok(x0)) return x0.slice();
+
+  // Candidats : projections sur chaque frontière + intersections deux à deux
+  const candidats = [];
+  if (dim === 1) {
+    for (const k of contraintes) {
+      if (Math.abs(k.n[0]) > 1e-12) candidats.push([-k.c / k.n[0]]);
+    }
+  } else {
+    for (const k of contraintes) {
+      const nn = k.n[0] ** 2 + k.n[1] ** 2;
+      if (nn < 1e-18) continue;
+      const t = (k.n[0] * x0[0] + k.n[1] * x0[1] + k.c) / nn;
+      candidats.push([x0[0] - t * k.n[0], x0[1] - t * k.n[1]]);
+    }
+    for (let a = 0; a < contraintes.length; a++) {
+      for (let b = a + 1; b < contraintes.length; b++) {
+        const A = contraintes[a], B = contraintes[b];
+        const det = A.n[0] * B.n[1] - A.n[1] * B.n[0];
+        if (Math.abs(det) < 1e-12) continue;
+        candidats.push([
+          (-A.c * B.n[1] + A.n[1] * B.c) / det,
+          (-A.n[0] * B.c + A.c * B.n[0]) / det
+        ]);
+      }
+    }
+  }
+
+  const brut = candidats.filter(ok).sort((p, q) => dist(p) - dist(q))[0];
+  if (!brut) return null;
+
+  // Arrondi en grammes en restant dans la zone faisable
+  const options = brut.map(v => [Math.floor(v), Math.ceil(v), Math.ceil(v) + 1]);
+  const combos = dim === 1
+    ? options[0].map(a => [a])
+    : options[0].flatMap(a => options[1].map(b => [a, b]));
+
+  let meilleur = null, meilleureDist = Infinity;
+  for (const c of combos) {
+    if (c.every(v => v >= 0) && ok(c)) {
+      const d = dist(c);
+      if (d < meilleureDist) { meilleur = c; meilleureDist = d; }
+    }
+  }
+  return meilleur;
+}
+
+/* ============================================================
+   CALCUL PRINCIPAL
+   ============================================================ */
 function calculerAssoc() {
-  const cerealeSelect = document.getElementById('cereale');
-  const legumineuseSelect = document.getElementById('legumineuse');
-  const laitierSelect = document.getElementById('laitier');
-  const legumeSelect = document.getElementById('legume');
-  const b12Select = document.getElementById('b12-source');
+  const cereale = lireIngredient('cereale', 'qty-cereale');
+  const legumineuse = lireIngredient('legumineuse', 'qty-legumineuse');
+  const laitier = lireIngredient('laitier', 'qty-laitier');
+  const legume = lireIngredient('legume', 'qty-legume');
+  const b12 = lireIngredient('b12-source', 'qty-b12');
+  const ings = [cereale, legumineuse, laitier, legume, b12];
 
-  // Quantités initiales de l'utilisateur
-  let qtyCereale = parseFloat(document.getElementById('qty-cereale').value) || 0;
-  let qtyLegumineuse = parseFloat(document.getElementById('qty-legumineuse').value) || 0;
-  let qtyLaitier = parseFloat(document.getElementById('qty-laitier').value) || 0;
-  let qtyLegume = parseFloat(document.getElementById('qty-legume').value) || 0;
-  let qtyB12 = parseFloat(document.getElementById('qty-b12').value) || 0;
-
-  if (!cerealeSelect.value && !legumineuseSelect.value && !laitierSelect.value && !legumeSelect.value && !b12Select.value) {
+  if (!ings.some(i => i.key)) {
     alert("Veuillez choisir au moins un aliment.");
     return;
   }
-
-  // Taux de protéines pour 100g de chaque ingrédient sélectionné
-  const prot100Cereale = parseFloat(cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.prot || 0);
-  const prot100Legumineuse = parseFloat(legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.prot || 0);
-  const prot100Laitier = parseFloat(laitierSelect.options[laitierSelect.selectedIndex]?.dataset.prot || 0);
-  const prot100Legume = parseFloat(legumeSelect.options[legumeSelect.selectedIndex]?.dataset.prot || 0);
-  const prot100B12 = parseFloat(b12Select.options[b12Select.selectedIndex]?.dataset.prot || 0);
-
-  const isCerealeComplete = cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.complete === "true";
-  const isLegumineuseComplete = legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.complete === "true";
-
-  // Protéines apportées par les aliments annexes (œuf, produits laitiers, légumes, compléments)
-  const protAnnexes = (prot100Laitier * qtyLaitier) / 100 + 
-                      (prot100Legume * qtyLegume) / 100 + 
-                      (prot100B12 * qtyB12) / 100;
-
-  // Cible de référence : 20g de protéines complètes (équivalent ~100g de viande)
-  const CIBLE_PROT_VIANDE = 20.0;
-
-  // AJUSTEMENT AUTOMATIQUE DES QUANTITÉS POUR ÉGALER LA VIANDE
-  if (cerealeSelect.value !== "" && legumineuseSelect.value !== "" && !isCerealeComplete && !isLegumineuseComplete) {
-    
-    // Si l'utilisateur n'a saisi aucune quantité, on applique une portion standard basée sur la céréale (ex: 80g)
-    if (qtyCereale === 0) qtyCereale = 80;
-
-    // Pour un équilibre idéal en acides aminés (Lysine / Méthionine),
-    // le ratio massique idéal est d'environ 1 portion de céréale pour 0.65 portion de légumineuse.
-    // Protéines fournies par 1g de céréale + 0.65g de légumineuse :
-    const protParGrammeCereale = (prot100Cereale / 100) + (0.65 * prot100Legumineuse / 100);
-
-    // Besoin en protéines restant à couvrir pour atteindre l'équivalent viande (20g)
-    const protResteACouvrir = Math.max(0, CIBLE_PROT_VIANDE - protAnnexes);
-
-    if (protParGrammeCereale > 0) {
-      // Ajustement des deux quantités pour équilibrer le profil AMINÉ ET le TOTAL PROTÉIQUE
-      qtyCereale = Math.round(protResteACouvrir / protParGrammeCereale);
-      qtyLegumineuse = Math.round(qtyCereale * 0.65);
-
-      // Mise à jour des champs de saisie dans l'interface
-      document.getElementById('qty-cereale').value = qtyCereale;
-      document.getElementById('qty-legumineuse').value = qtyLegumineuse;
-    }
-
-  } else if (cerealeSelect.value !== "" && (qtyCereale > 0 || qtyLegumineuse === 0)) {
-    // Si une seule source incomplète est choisie (ex. seulement céréale), on ajuste sa quantité pour atteindre la cible
-    if (prot100Cereale > 0) {
-      const protReste = Math.max(0, CIBLE_PROT_VIANDE - protAnnexes);
-      qtyCereale = Math.round((protReste * 100) / prot100Cereale);
-      document.getElementById('qty-cereale').value = qtyCereale;
-    }
-} else if (cerealeSelect.value !== "" && (qtyCereale > 0 || qtyLegumineuse === 0)) {
-    // Une seule source incomplète, ou céréale + légumineuse complète : on déduit ce que la légumineuse apporte déjà
-    if (prot100Cereale > 0) {
-      const protLegumineuseSaisie = (prot100Legumineuse * qtyLegumineuse) / 100;
-      const protReste = Math.max(0, CIBLE_PROT_VIANDE - protAnnexes - protLegumineuseSaisie);
-      qtyCereale = Math.round((protReste * 100) / prot100Cereale);
-      document.getElementById('qty-cereale').value = qtyCereale;
-    }
-  } else if (legumineuseSelect.value !== "" && qtyLegumineuse > 0) {
-    if (prot100Legumineuse > 0) {
-      const protReste = Math.max(0, CIBLE_PROT_VIANDE - protAnnexes);
-      qtyLegumineuse = Math.round((protReste * 100) / prot100Legumineuse);
-      document.getElementById('qty-legumineuse').value = qtyLegumineuse;
-    }
-  }
-  // 1. CALCUL DES PROTÉINES TOTALES FINALES (g)
-  const protCereale = (prot100Cereale * qtyCereale) / 100;
-  const protLegumineuse = (prot100Legumineuse * qtyLegumineuse) / 100;
-  const protLaitier = (prot100Laitier * qtyLaitier) / 100;
-  const protLegume = (prot100Legume * qtyLegume) / 100;
-  const protB12 = (prot100B12 * qtyB12) / 100;
-
-  const totalProt = parseFloat((protCereale + protLegumineuse + protLaitier + protLegume + protB12).toFixed(1));
-
-  // 2. CALCUL DE LA VITAMINE B12 (µg)
-  const b12Laitier = (parseFloat(laitierSelect.options[laitierSelect.selectedIndex]?.dataset.b12 || 0) * qtyLaitier) / 100;
-  const b12Source = (parseFloat(b12Select.options[b12Select.selectedIndex]?.dataset.b12 || 0) * qtyB12) / 100;
-  const totalB12 = parseFloat((b12Laitier + b12Source).toFixed(2));
-
-  // 3. CALCUL DES CALORIES TOTALES (kcal)
-  const calCereale = (parseFloat(cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.cal || 0) * qtyCereale) / 100;
-  const calLegumineuse = (parseFloat(legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.cal || 0) * qtyLegumineuse) / 100;
-  const calLaitier = (parseFloat(laitierSelect.options[laitierSelect.selectedIndex]?.dataset.cal || 0) * qtyLaitier) / 100;
-  const calLegume = (parseFloat(legumeSelect.options[legumeSelect.selectedIndex]?.dataset.cal || 0) * qtyLegume) / 100;
-  const calB12 = (parseFloat(b12Select.options[b12Select.selectedIndex]?.dataset.cal || 0) * qtyB12) / 100;
-
-  const totalCal = Math.round(calCereale + calLegumineuse + calLaitier + calLegume + calB12);
-
-  // 4. ÉVALUATION DE LA VALEUR BIOLOGIQUE (SCORE %)
-  const hasAssociation = cerealeSelect.value !== "" && legumineuseSelect.value !== "" && qtyCereale > 0 && qtyLegumineuse > 0;
-  const isCompleteSource = (protLaitier >= 8) || isCerealeComplete || isLegumineuseComplete;
-
-  let qualityScore = 60;
-  if (hasAssociation || isCompleteSource) {
-    qualityScore = 100; // Profil aminé complet
+  if (!ings.some(i => i.qty > 0)) {
+    alert("Veuillez saisir au moins une quantité.");
+    return;
   }
 
-  // 5. AFFICHAGE DANS L'INTERFACE
+  // Cible de protéines (champ facultatif #cible-prot, 20 g par défaut) : sert uniquement aux messages
+  const cibleProt = parseFloat(document.getElementById('cible-prot')?.value) || 20;
+
+  // ---- AJUSTEMENT : rapprocher le profil aminé de l'équivalent viande ----
+  // Seules la céréale et la légumineuse choisies (quantité > 0) sont modifiées,
+  // au plus près de la saisie, pour que lysine ET acides aminés soufrés atteignent la référence.
+  const adjustables = [cereale, legumineuse].filter(i => i.key && i.qty > 0);
+  const fixes = ings.filter(i => !adjustables.includes(i));
+  const ajustements = [];
+  let ajustementImpossible = false;
+
+  if (adjustables.length > 0) {
+    const contraintes = ['lys', 'saa'].map(aa => ({
+      n: adjustables.map(i => (i.prot100 / 100) * (i[aa] - REF_AA[aa])),
+      c: fixes.reduce((s, i) => s + (i.prot100 / 100) * i.qty * (i[aa] - REF_AA[aa]), 0)
+    }));
+    // Garde-fou : un aliment choisi ne peut pas être réduit à presque rien (min. 10 g)
+    adjustables.forEach((i, k) => {
+      contraintes.push({
+        n: adjustables.map((_, j) => (j === k ? 1 : 0)),
+        c: -Math.min(10, i.qty)
+      });
+    });
+
+    const solution = resoudre(adjustables.map(i => i.qty), contraintes);
+    if (solution) {
+      adjustables.forEach((i, k) => {
+        if (solution[k] !== i.qty) {
+          ajustements.push(`${i.nom} ${i.qty} → ${solution[k]} g`);
+          i.qty = solution[k];
+          document.getElementById(i.qtyId).value = i.qty;
+        }
+      });
+    } else {
+      ajustementImpossible = true;
+    }
+  }
+
+  // ---- 1. PROTÉINES ET SCORE AMINÉ ----
+  const profil = profilAmine(ings);
+  const totalProt = parseFloat(profil.prot.toFixed(1));
+  const qualityScore = Math.round(profil.score * 100);
+
+  // ---- 2. VITAMINE B12 (µg) ----
+  const totalB12 = parseFloat(ings.reduce((s, i) => s + (i.b12100 * i.qty) / 100, 0).toFixed(2));
+
+  // ---- 3. CALORIES (kcal) ----
+  const totalCal = Math.round(ings.reduce((s, i) => s + (i.cal100 * i.qty) / 100, 0));
+
+  // ---- 4. AFFICHAGE ----
   document.getElementById('total-protein').innerText = totalProt;
   document.getElementById('quality-score').innerText = qualityScore + "%";
   document.getElementById('total-b12').innerText = totalB12;
@@ -128,18 +223,25 @@ function calculerAssoc() {
   const portionAdviceText = document.getElementById('portion-advice-text');
   const b12StatusText = document.getElementById('b12-status-text');
 
-  if (qualityScore === 100 && totalProt >= 18) {
-    resultTitle.innerText = "🎯 Équivalent Viande Ajusté !";
-    resultText.innerText = `Quantités ajustées (${qtyCereale}g / ${qtyLegumineuse}g) pour obtenir exactement 20g de protéines complètes à haute valeur biologique.`;
- } else if (qualityScore === 100) {
-  resultTitle.innerText = "✅ Profil aminé complet";
-  resultText.innerText = `Profil complet, mais seulement ${totalProt}g de protéines : augmentez les portions pour égaler un steak.`;
+  const detailAjust = ajustements.length ? ` Quantités ajustées au plus près de votre saisie : ${ajustements.join(', ')}.` : '';
+
+  if (qualityScore === 100 && totalProt >= cibleProt * 0.9) {
+    resultTitle.innerText = "🎯 Équivalent Viande !";
+    resultText.innerText = `Profil en acides aminés équivalent à la viande, avec ${totalProt}g de protéines.${detailAjust}`;
+  } else if (qualityScore === 100) {
+    resultTitle.innerText = "✅ Profil aminé complet";
+    resultText.innerText = `Profil complet, mais seulement ${totalProt}g de protéines : augmentez les portions pour égaler un steak.${detailAjust}`;
   } else {
-    resultTitle.innerText = "⚠️ Association partielle";
-    resultText.innerText = "Ajoutez une légumineuse pour associer avec votre céréale et obtenir un profil aminé optimal.";
+    const lysLimite = profil.scoreLys <= profil.scoreSaa;
+    const limitant = lysLimite ? 'lysine' : 'acides aminés soufrés (méthionine + cystéine)';
+    const conseil = lysLimite
+      ? 'une légumineuse, un produit laitier ou un œuf'
+      : 'une céréale (riz, avoine, quinoa…) ou un œuf';
+    resultTitle.innerText = "⚠️ Profil aminé incomplet";
+    resultText.innerText = `${ajustementImpossible ? "Impossible de corriger avec ces seuls aliments. " : ""}Acide aminé limitant : ${limitant} (${qualityScore}% du profil de référence). Ajoutez ${conseil}.`;
   }
 
-  if (totalProt >= 18) {
+  if (totalProt >= cibleProt * 0.9) {
     portionAdviceText.innerText = `🍗 Dose parfaite : Vous obtenez ${totalProt}g de protéines, équivalent nutritionnel d'un steak de viande.`;
     portionAdviceText.style.color = "#2e7d32";
   } else {
@@ -147,21 +249,22 @@ function calculerAssoc() {
     portionAdviceText.style.color = "#ed6c02";
   }
 
-const B12_REF_JOUR = 4; // µg/j, référence ANSES adulte
-const pctB12 = Math.round((totalB12 / B12_REF_JOUR) * 100);
+  const B12_REF_JOUR = 4; // µg/j, référence ANSES adulte
+  const pctB12 = Math.round((totalB12 / B12_REF_JOUR) * 100);
 
-if (totalB12 >= B12_REF_JOUR) {
-  b12StatusText.innerText = `🎯 Vitamine B12 : ${pctB12}% de la référence journalière (4 µg). L'absorption plafonne à ~1,5–2 µg par prise : répartissez sur la journée.`;
-  b12StatusText.style.color = "#2e7d32";
-} else if (totalB12 >= 1.3) {
-  b12StatusText.innerText = `👍 Vitamine B12 : bon apport pour un repas (${pctB12}% de la référence journalière de 4 µg).`;
-  b12StatusText.style.color = "#2e7d32";
-} else if (totalB12 > 0) {
-  b12StatusText.innerText = `⚠️ Vitamine B12 : apport faible (${pctB12}% de la référence journalière). À compléter aux autres repas.`;
-  b12StatusText.style.color = "#ed6c02";
-} else {
-  b12StatusText.innerText = "⚠️ Vitamine B12 : 0 µg. Repas sans B12.";
-  b12StatusText.style.color = "#d32f2f";
-}
-document.getElementById('result').style.display = "block";
+  if (totalB12 >= B12_REF_JOUR) {
+    b12StatusText.innerText = `🎯 Vitamine B12 : ${pctB12}% de la référence journalière (4 µg). L'absorption plafonne à ~1,5–2 µg par prise : répartissez sur la journée.`;
+    b12StatusText.style.color = "#2e7d32";
+  } else if (totalB12 >= 1.3) {
+    b12StatusText.innerText = `👍 Vitamine B12 : bon apport pour un repas (${pctB12}% de la référence journalière de 4 µg).`;
+    b12StatusText.style.color = "#2e7d32";
+  } else if (totalB12 > 0) {
+    b12StatusText.innerText = `⚠️ Vitamine B12 : apport faible (${pctB12}% de la référence journalière). À compléter aux autres repas.`;
+    b12StatusText.style.color = "#ed6c02";
+  } else {
+    b12StatusText.innerText = "⚠️ Vitamine B12 : 0 µg. Repas sans B12.";
+    b12StatusText.style.color = "#d32f2f";
+  }
+
+  document.getElementById('result').style.display = "block";
 }
