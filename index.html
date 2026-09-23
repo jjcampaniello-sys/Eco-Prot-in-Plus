@@ -1,96 +1,130 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const btnSubmit = document.getElementById('btn-submit');
-  btnSubmit.addEventListener('click', calculerAssoc);
-});
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculateur de Repas & Qualité Protéique</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
-function calculerAssoc() {
-  const cerealeSelect = document.getElementById('cereale');
-  const legumineuseSelect = document.getElementById('legumineuse');
-  const animalSelect = document.getElementById('animal-source');
-  const b12Select = document.getElementById('b12-source');
+<div class="container">
+  <h1>Calculateur d'Équivalence Protéique</h1>
+  <p class="subtitle">Analyse quantitative ET qualitative (Profil type viande)</p>
 
-  const qtyCereale = parseFloat(document.getElementById('qty-cereale').value) || 0;
-  const qtyLegumineuse = parseFloat(document.getElementById('qty-legumineuse').value) || 0;
-  const qtyAnimal = parseFloat(document.getElementById('qty-animal').value) || 0;
-  const qtyB12 = parseFloat(document.getElementById('qty-b12').value) || 0;
+  <form id="meal-form">
+    <div class="grid-select">
+      <!-- Céréales crus -->
+      <div class="select-group">
+        <label for="cereale">Céréales (poids CRU) :</label>
+        <select id="cereale">
+          <option value="">-- Aucun --</option>
+          <option value="riz" data-prot="7.0" data-b12="0" data-cal="360" data-lysine="low">Riz cru (7g prot / 100g)</option>
+          <option value="quinoa" data-prot="14.0" data-b12="0" data-cal="368" data-complete="true">Quinoa cru (14g prot - Profil complet) ★</option>
+          <option value="pates" data-prot="12.5" data-b12="0" data-cal="350" data-lysine="low">Pâtes crues (12.5g prot / 100g)</option>
+          <option value="avoine" data-prot="13.5" data-b12="0" data-cal="389" data-lysine="low">Flocons d'avoine (13.5g prot / 100g)</option>
+          <option value="sarrasin" data-prot="13.0" data-b12="0" data-cal="343" data-complete="true">Sarrasin cru (13g prot - Profil complet) ★</option>
+        </select>
+        <div class="portion-inputs">
+          <input type="number" id="qty-cereale" value="60" min="0">
+          <span>g cru</span>
+        </div>
+      </div>
 
-  if (!cerealeSelect.value && !legumineuseSelect.value && !animalSelect.value && !b12Select.value) {
-    alert("Veuillez sélectionner au moins un aliment.");
-    return;
-  }
+      <!-- Légumineuses & Soja -->
+      <div class="select-group">
+        <label for="legumineuse">Légumineuses / Soja :</label>
+        <select id="legumineuse">
+          <option value="">-- Aucun --</option>
+          <option value="lentilles" data-prot="25.0" data-b12="0" data-cal="350" data-methio="low">Lentilles sèches (25g prot / 100g)</option>
+          <option value="pois_chiches" data-prot="19.0" data-b12="0" data-cal="364" data-methio="low">Pois chiches secs (19g prot / 100g)</option>
+          <option value="tofu" data-prot="12.0" data-b12="0" data-cal="144" data-complete="true">Tofu frais (12g prot - Profil complet) ★</option>
+          <option value="tempeh" data-prot="19.0" data-b12="0" data-cal="193" data-complete="true">Tempeh (19g prot - Profil complet) ★</option>
+        </select>
+        <div class="portion-inputs">
+          <input type="number" id="qty-legumineuse" value="50" min="0">
+          <span>g</span>
+        </div>
+      </div>
+    </div>
 
-  // Calcul Protéines (g)
-  const protCereale = (parseFloat(cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.prot || 0) * qtyCereale) / 100;
-  const protLegumineuse = (parseFloat(legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.prot || 0) * qtyLegumineuse) / 100;
-  const protAnimal = (parseFloat(animalSelect.options[animalSelect.selectedIndex]?.dataset.prot || 0) * qtyAnimal) / 100;
-  const protB12 = (parseFloat(b12Select.options[b12Select.selectedIndex]?.dataset.prot || 0) * qtyB12) / 100;
+    <div class="grid-select">
+      <!-- Produits Laitiers & Œufs -->
+      <div class="select-group">
+        <label for="laitier-source">Lait, Yaourts, Skyr, Œufs :</label>
+        <select id="laitier-source">
+          <option value="">-- Aucun --</option>
+          <option value="skyr" data-prot="10.0" data-b12="0.3" data-cal="57" data-complete="true">Skyr / Max Protéines (10g prot / 0.3µg B12 / 100g) ★</option>
+          <option value="fromage_blanc" data-prot="8.0" data-b12="0.25" data-cal="50" data-complete="true">Fromage blanc (8g prot / 0.25µg B12 / 100g) ★</option>
+          <option value="yaourt_grec" data-prot="6.0" data-b12="0.3" data-cal="120" data-complete="true">Yaourt grec (6g prot / 0.3µg B12 / 100g) ★</option>
+          <option value="oeuf" data-prot="13.0" data-b12="1.1" data-cal="155" data-complete="true">Œuf entier (13g prot / 1.1µg B12 / 100g) ★</option>
+          <option value="lait_vache" data-prot="3.3" data-b12="0.4" data-cal="62" data-complete="true">Lait de vache (3.3g prot / 0.4µg B12 / 100ml) ★</option>
+          <option value="fromage_dur" data-prot="25.0" data-b12="1.5" data-cal="380" data-complete="true">Fromage pâte dure (25g prot / 1.5µg B12 / 100g) ★</option>
+        </select>
+        <div class="portion-inputs">
+          <input type="number" id="qty-laitier" value="140" min="0">
+          <span>g / ml</span>
+        </div>
+      </div>
 
-  const totalProt = (protCereale + protLegumineuse + protAnimal + protB12).toFixed(1);
+      <!-- Légumes -->
+      <div class="select-group">
+        <label for="legume">Légumes (Brocolis, Épinards...) :</label>
+        <select id="legume">
+          <option value="">-- Aucun --</option>
+          <option value="brocoli" data-prot="2.8" data-b12="0" data-cal="34">Brocoli (2.8g prot / 100g)</option>
+          <option value="epinard" data-prot="2.9" data-b12="0" data-cal="23">Épinards (2.9g prot / 100g)</option>
+          <option value="petits_pois" data-prot="5.4" data-b12="0" data-cal="81">Petits pois (5.4g prot / 100g)</option>
+          <option value="legumes_mix" data-prot="1.5" data-b12="0" data-cal="30">Légumes variés (1.5g prot / 100g)</option>
+        </select>
+        <div class="portion-inputs">
+          <input type="number" id="qty-legume" value="150" min="0">
+          <span>g</span>
+        </div>
+      </div>
+    </div>
 
-  // Calcul B12 (µg)
-  const b12Cereale = (parseFloat(cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.b12 || 0) * qtyCereale) / 100;
-  const b12Legumineuse = (parseFloat(legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.b12 || 0) * qtyLegumineuse) / 100;
-  const b12Animal = (parseFloat(animalSelect.options[animalSelect.selectedIndex]?.dataset.b12 || 0) * qtyAnimal) / 100;
-  const b12Source = (parseFloat(b12Select.options[b12Select.selectedIndex]?.dataset.b12 || 0) * qtyB12) / 100;
+    <!-- Complément B12 / Assaisonnement -->
+    <div class="select-group" style="margin-bottom: 15px;">
+      <label for="b12-source" style="color: #ed6c02;">Complément / Levure B12 :</label>
+      <select id="b12-source">
+        <option value="">-- Aucun --</option>
+        <option value="levure_b12" data-prot="45" data-b12="44" data-cal="325">Levure maltée B12 (45g prot / 44µg B12 / 100g)</option>
+      </select>
+      <div class="portion-inputs" style="max-width: 300px;">
+        <input type="number" id="qty-b12" value="5" min="0">
+        <span>g</span>
+      </div>
+    </div>
 
-  const totalB12 = (b12Cereale + b12Legumineuse + b12Animal + b12Source).toFixed(2);
+    <button type="button" id="btn-submit">Analyser la qualité réelle du repas</button>
+  </form>
 
-  // Calcul Calories (kcal)
-  const calCereale = (parseFloat(cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.cal || 0) * qtyCereale) / 100;
-  const calLegumineuse = (parseFloat(legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.cal || 0) * qtyLegumineuse) / 100;
-  const calAnimal = (parseFloat(animalSelect.options[animalSelect.selectedIndex]?.dataset.cal || 0) * qtyAnimal) / 100;
-  const calB12 = (parseFloat(b12Select.options[b12Select.selectedIndex]?.dataset.cal || 0) * qtyB12) / 100;
+  <!-- Résultat -->
+  <div id="result" class="result-card">
+    <h2 id="result-title"></h2>
+    <p id="result-text"></p>
 
-  const totalCal = Math.round(calCereale + calLegumineuse + calAnimal + calB12);
+    <div class="stats-grid">
+      <div class="stat-box">
+        <span class="stat-value" id="total-protein">0</span>
+        <span class="stat-unit">g Protéines Totales</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-value" id="quality-score">0%</span>
+        <span class="stat-unit">Qualité Biologique (Vs Viande)</span>
+      </div>
+      <div class="stat-box stat-full">
+        <span class="stat-value" id="total-b12">0</span>
+        <span class="stat-unit">µg Vitamine B12</span>
+      </div>
+    </div>
 
-  // Vérification de la qualité des protéines
-  const isCerealeComplete = cerealeSelect.options[cerealeSelect.selectedIndex]?.dataset.complete === "true";
-  const isLegumineuseComplete = legumineuseSelect.options[legumineuseSelect.selectedIndex]?.dataset.complete === "true";
-  const isAnimalComplete = animalSelect.options[animalSelect.selectedIndex]?.dataset.complete === "true";
+    <p id="portion-advice-text" class="status-msg"></p>
+    <p id="b12-status-text" class="status-msg"></p>
+  </div>
+</div>
 
-  const resultDiv = document.getElementById('result');
-  const resultTitle = document.getElementById('result-title');
-  const resultText = document.getElementById('result-text');
-  const totalProteinSpan = document.getElementById('total-protein');
-  const totalB12Span = document.getElementById('total-b12');
-  const totalCaloriesSpan = document.getElementById('total-calories');
-  const b12StatusText = document.getElementById('b12-status-text');
-  const portionAdviceText = document.getElementById('portion-advice-text');
-
-  if (isAnimalComplete || isCerealeComplete || isLegumineuseComplete) {
-    resultTitle.innerText = "✅ Excellent profil d'acides aminés !";
-    resultText.innerText = "Votre plat contient une source de protéines complètes (œufs/laitages, tofu, tempeh, quinoa ou sarrasin).";
-  } else if (cerealeSelect.value && legumineuseSelect.value) {
-    resultTitle.innerText = "👌 Association parfaite !";
-    resultText.innerText = "L'association Céréale + Légumineuse garantit un profil complet d'acides aminés.";
-  } else {
-    resultTitle.innerText = "⚠️ Protéines incomplètes";
-    resultText.innerText = "Associez des céréales avec des légumineuses, ou ajoutez des œufs, des produits laitiers ou du tofu.";
-  }
-
-  // Évaluation du total de protéines vs Viande
-  if (totalProt >= 20) {
-    portionAdviceText.innerText = "🍗 Équivalent viande atteint ! Vous obtenez la dose de protéines d'un steak standard de 100g (~20-25g).";
-    portionAdviceText.style.color = "#2e7d32";
-  } else {
-    portionAdviceText.innerText = `💡 Pour atteindre un apport comparable à un steak (20g de protéines), augmentez un peu les portions (il manque environ ${(20 - totalProt).toFixed(1)}g).`;
-    portionAdviceText.style.color = "#ed6c02";
-  }
-
-  // Évaluation B12
-  if (totalB12 >= 2.5) {
-    b12StatusText.innerText = "🎯 B12 : Excellent ! Vos besoins journaliers en vitamine B12 sont complètement couverts.";
-    b12StatusText.style.color = "#2e7d32";
-  } else if (totalB12 > 0) {
-    b12StatusText.innerText = "👍 B12 : Bon apport (partiel). Un complément ou une autre source sur la journée complètera votre besoin.";
-    b12StatusText.style.color = "#ed6c02";
-  } else {
-    b12StatusText.innerText = "⚠️ B12 : 0 µg. Ce repas ne contient pas de vitamine B12. Pensez à une supplémentation.";
-    b12StatusText.style.color = "#d32f2f";
-  }
-
-  totalProteinSpan.innerText = totalProt;
-  totalB12Span.innerText = totalB12;
-  totalCaloriesSpan.innerText = totalCal;
-  resultDiv.style.display = "block";
-}
+<script src="script.js"></script>
+</body>
+</html>
