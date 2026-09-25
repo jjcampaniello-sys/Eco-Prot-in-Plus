@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>README — Calculateur d'Équilibre Protéique</title>
+<style>
+  :root { --primary: #2e7d32; --bg: #f8f9fa; --text: #333; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; margin: 0; padding: 20px; }
+  .container { max-width: 850px; margin: 0 auto; background: #fff; padding: 25px 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+  h1 { color: var(--primary); }
+  h2 { color: var(--primary); border-bottom: 2px solid #e8f5e9; padding-bottom: 6px; margin-top: 30px; }
+  table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #e8f5e9; }
+  code { background: #f1f1f1; padding: 2px 6px; border-radius: 4px; font-size: 0.95em; }
+  ul, ol { padding-left: 22px; }
+  .note { background: #fff8e1; border-left: 4px solid #ed6c02; padding: 10px 15px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Calculateur d'Équilibre Protéique</h1>
+<p>Application web (HTML/CSS/JS, sans dépendance) pour composer un repas végétarien et évaluer :</p>
+<ul>
+  <li>les protéines totales (g),</li>
+  <li>la qualité du profil en acides aminés par rapport à la viande (%),</li>
+  <li>la vitamine B12 (µg),</li>
+  <li>les calories (kcal).</li>
+</ul>
+<p>Tous les ingrédients sont pesés <strong>crus / secs</strong>, sauf indication contraire (produits laitiers, œufs).</p>
+
+<h2>Fichiers</h2>
+<table>
+  <tr><th>Fichier</th><th>Rôle</th></tr>
+  <tr><td><code>index.html</code></td><td>Structure de la page et listes d'aliments</td></tr>
+  <tr><td><code>style.css</code></td><td>Mise en forme</td></tr>
+  <tr><td><code>script.js</code></td><td>Calculs et logique d'ajustement des quantités</td></tr>
+  <tr><td><code>README.md</code> / <code>README.html</code></td><td>Ce document</td></tr>
+</table>
+
+<h2>Utilisation</h2>
+<ol>
+  <li>Choisir jusqu'à un aliment par catégorie (céréale, légumineuse/soja, laitier/œuf, fruits à coque/graines, légume, complément B12).</li>
+  <li>Saisir les quantités en grammes (ou ml pour le lait).</li>
+  <li>Cliquer sur « Calculer l'équilibre du repas ».</li>
+</ol>
+
+<h2>Logique de calcul</h2>
+
+<h3>Score du profil en acides aminés</h3>
+<p>Le score compare, par gramme de protéines, la teneur en <strong>lysine</strong> et en <strong>acides aminés soufrés</strong> (méthionine + cystéine) du repas à un profil de référence adulte (FAO/WHO/UNU 2007), pris comme équivalent à la viande.</p>
+<div class="note">100 % signifie une qualité de protéine équivalente à la viande, gramme pour gramme — pas que la quantité totale de protéines équivaut à une portion de viande.</div>
+<p>Les autres acides aminés essentiels (thréonine, tryptophane, etc.) ne sont pas limitants dans les combinaisons proposées et ne sont pas pris en compte, pour garder le calcul simple.</p>
+
+<h3>Ajustement automatique des quantités</h3>
+<p>Si le score est inférieur à 100 %, l'application rapproche les quantités du profil idéal, <strong>au plus près de la saisie</strong> :</p>
+<ol>
+  <li><strong>Étape 1</strong> : ajustement de la céréale et de la légumineuse (peuvent monter ou descendre, jamais sous 10 g).</li>
+  <li><strong>Étape 2 (dernier recours)</strong> : si l'étape 1 ne suffit pas, ou si les compléments corrigent le profil en déplaçant les quantités deux fois moins, les compléments choisis (laitier/œuf, fruits à coque/graines) sont <strong>augmentés</strong> (jamais réduits, plafonnés à ×2 ou 50 g minimum).</li>
+</ol>
+
+<h3>Vitamine B12</h3>
+<p>Comparée à une référence journalière de 4 µg (ANSES, adulte). L'absorption plafonnant à ~1,5–2 µg par prise, une forte dose en un seul repas n'est pas entièrement utilisée : mieux vaut répartir les sources sur la journée.</p>
+
+<h2>Limites connues</h2>
+<ul>
+  <li>Les valeurs nutritionnelles (protéines, acides aminés, B12, calories) sont des moyennes de tables généralistes (USDA/Ciqual) et peuvent varier selon le produit réel utilisé — vérifie les étiquettes si besoin.</li>
+  <li>Le score aminé ignore la digestibilité (les protéines végétales sont en général un peu moins bien absorbées que les protéines animales).</li>
+  <li>Les calories sont calculées sur le poids saisi (cru/sec pour les céréales et légumineuses) : l'eau absorbée à la cuisson change le poids et le volume, jamais l'apport calorique.</li>
+</ul>
+
+</div>
+</body>
+</html>
