@@ -38,6 +38,15 @@ const AA = {
   lait_vache:       { lys: 80, saa: 34 },
   lait_veg_b12:     { lys: 60, saa: 25 },  // supposé à base de soja
   fromage:          { lys: 80, saa: 30 },
+  // Fruits à coque / graines
+  sesame:           { lys: 32, saa: 53 },
+  tournesol:        { lys: 45, saa: 45 },
+  courge:           { lys: 41, saa: 30 },
+  chanvre:          { lys: 36, saa: 51 },
+  amandes:          { lys: 28, saa: 16 },
+  noix:             { lys: 28, saa: 29 },
+  cajou:            { lys: 51, saa: 38 },
+  noisettes:        { lys: 28, saa: 31 },
   // Légumes
   brocoli:          { lys: 60, saa: 21 },
   epinard:          { lys: 61, saa: 29 },
@@ -88,59 +97,97 @@ function profilAmine(ings) {
   return { prot, scoreLys, scoreSaa, score: Math.min(1, scoreLys, scoreSaa) };
 }
 
+// Résout M·x = v (petit système) par élimination de Gauss-Jordan ; null si singulier
+function resoudreSysteme(M, v) {
+  const n = v.length;
+  const a = M.map((row, i) => [...row, v[i]]);
+  for (let c = 0; c < n; c++) {
+    let p = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(a[r][c]) > Math.abs(a[p][c])) p = r;
+    if (Math.abs(a[p][c]) < 1e-12) return null;
+    [a[c], a[p]] = [a[p], a[c]];
+    for (let r = 0; r < n; r++) {
+      if (r === c) continue;
+      const f = a[r][c] / a[c][c];
+      for (let k = c; k <= n; k++) a[r][k] -= f * a[c][k];
+    }
+  }
+  return a.map((row, i) => row[n] / row[i]);
+}
+
 // Trouve les quantités (entières) les plus proches de x0 qui respectent toutes les
-// contraintes linéaires  n·x + c >= 0. Renvoie null si aucune solution.
+// contraintes linéaires  n·x + c >= 0  (dimension quelconque, petite).
+// Le point le plus proche est la projection de x0 sur l'intersection de certaines
+// frontières : on les essaie toutes et on garde la plus proche qui est faisable.
+// Renvoie null si aucune solution.
 function resoudre(x0, contraintes) {
   const EPS = 1e-7;
   const dim = x0.length;
-  const ok = x => contraintes.every(k => k.n.reduce((s, ni, i) => s + ni * x[i], k.c) >= -EPS);
+  const m = contraintes.length;
+  const val = (k, x) => k.n.reduce((s, ni, i) => s + ni * x[i], k.c);
+  const ok = x => contraintes.every(k => val(k, x) >= -EPS);
   const dist = x => Math.hypot(...x.map((v, i) => v - x0[i]));
 
   if (ok(x0)) return x0.slice();
 
-  // Candidats : projections sur chaque frontière + intersections deux à deux
+  // Candidats : projection de x0 sur les sous-ensembles (taille 1 à dim) de frontières
   const candidats = [];
-  if (dim === 1) {
-    for (const k of contraintes) {
-      if (Math.abs(k.n[0]) > 1e-12) candidats.push([-k.c / k.n[0]]);
-    }
-  } else {
-    for (const k of contraintes) {
-      const nn = k.n[0] ** 2 + k.n[1] ** 2;
-      if (nn < 1e-18) continue;
-      const t = (k.n[0] * x0[0] + k.n[1] * x0[1] + k.c) / nn;
-      candidats.push([x0[0] - t * k.n[0], x0[1] - t * k.n[1]]);
-    }
-    for (let a = 0; a < contraintes.length; a++) {
-      for (let b = a + 1; b < contraintes.length; b++) {
-        const A = contraintes[a], B = contraintes[b];
-        const det = A.n[0] * B.n[1] - A.n[1] * B.n[0];
-        if (Math.abs(det) < 1e-12) continue;
-        candidats.push([
-          (-A.c * B.n[1] + A.n[1] * B.c) / det,
-          (-A.n[0] * B.c + A.c * B.n[0]) / det
-        ]);
+  const explorer = (debut, choisis) => {
+    if (choisis.length > 0) {
+      const S = choisis.map(i => contraintes[i]);
+      const G = S.map(a => S.map(b => a.n.reduce((s, ni, i) => s + ni * b.n[i], 0)));
+      const r = S.map(a => val(a, x0));
+      const lambda = resoudreSysteme(G, r);
+      if (lambda) {
+        candidats.push(x0.map((v, j) => v - S.reduce((s, a, i) => s + lambda[i] * a.n[j], 0)));
       }
     }
-  }
+    if (choisis.length === dim) return;
+    for (let i = debut; i < m; i++) explorer(i + 1, [...choisis, i]);
+  };
+  explorer(0, []);
 
-  const brut = candidats.filter(ok).sort((p, q) => dist(p) - dist(q))[0];
-  if (!brut) return null;
+  const faisables = candidats.filter(ok).sort((p, q) => dist(p) - dist(q));
 
   // Arrondi en grammes en restant dans la zone faisable
-  const options = brut.map(v => [Math.floor(v), Math.ceil(v), Math.ceil(v) + 1]);
-  const combos = dim === 1
-    ? options[0].map(a => [a])
-    : options[0].flatMap(a => options[1].map(b => [a, b]));
-
-  let meilleur = null, meilleureDist = Infinity;
-  for (const c of combos) {
-    if (c.every(v => v >= 0) && ok(c)) {
-      const d = dist(c);
-      if (d < meilleureDist) { meilleur = c; meilleureDist = d; }
+  for (const brut of faisables) {
+    let combos = [[]];
+    for (const v of brut) {
+      const opts = [Math.floor(v), Math.ceil(v), Math.ceil(v) + 1];
+      combos = combos.flatMap(c => opts.map(o => [...c, o]));
     }
+    let meilleur = null, meilleureDist = Infinity;
+    for (const c of combos) {
+      if (c.every(v => v >= 0) && ok(c)) {
+        const d = dist(c);
+        if (d < meilleureDist) { meilleur = c; meilleureDist = d; }
+      }
+    }
+    if (meilleur) return meilleur;
   }
-  return meilleur;
+  return null;
+}
+
+// Cherche les quantités des aliments « adjustables » (les autres restent fixes) pour que
+// lysine ET acides aminés soufrés atteignent la référence, au plus près de la saisie.
+//  - céréale / légumineuse : peuvent monter ou descendre (minimum 10 g)
+//  - compléments (laitier/œuf, fruits à coque/graines) : peuvent seulement augmenter (max ×2, au moins 50 g)
+function ajusterQuantites(ings, adjustables) {
+  const fixes = ings.filter(i => !adjustables.includes(i));
+  const contraintes = ['lys', 'saa'].map(aa => ({
+    n: adjustables.map(i => (i.prot100 / 100) * (i[aa] - REF_AA[aa])),
+    c: fixes.reduce((s, i) => s + (i.prot100 / 100) * i.qty * (i[aa] - REF_AA[aa]), 0)
+  }));
+  adjustables.forEach((i, k) => {
+    const e = adjustables.map((_, j) => (j === k ? 1 : 0));
+    if (i.complement) {
+      contraintes.push({ n: e, c: -i.qty });                                   // pas de réduction
+      contraintes.push({ n: e.map(v => -v), c: Math.max(2 * i.qty, 50) });      // plafond raisonnable
+    } else {
+      contraintes.push({ n: e, c: -Math.min(10, i.qty) });                      // jamais réduit à presque rien
+    }
+  });
+  return resoudre(adjustables.map(i => i.qty), contraintes);
 }
 
 /* ============================================================
@@ -150,9 +197,12 @@ function calculerAssoc() {
   const cereale = lireIngredient('cereale', 'qty-cereale');
   const legumineuse = lireIngredient('legumineuse', 'qty-legumineuse');
   const laitier = lireIngredient('laitier', 'qty-laitier');
+  const graines = lireIngredient('graines', 'qty-graines');
   const legume = lireIngredient('legume', 'qty-legume');
   const b12 = lireIngredient('b12-source', 'qty-b12');
-  const ings = [cereale, legumineuse, laitier, legume, b12];
+  laitier.complement = true;
+  graines.complement = true;
+  const ings = [cereale, legumineuse, laitier, graines, legume, b12];
 
   if (!ings.some(i => i.key)) {
     alert("Veuillez choisir au moins un aliment.");
@@ -167,35 +217,41 @@ function calculerAssoc() {
   const cibleProt = parseFloat(document.getElementById('cible-prot')?.value) || 20;
 
   // ---- AJUSTEMENT : rapprocher le profil aminé de l'équivalent viande ----
-  // Seules la céréale et la légumineuse choisies (quantité > 0) sont modifiées,
-  // au plus près de la saisie, pour que lysine ET acides aminés soufrés atteignent la référence.
-  const adjustables = [cereale, legumineuse].filter(i => i.key && i.qty > 0);
-  const fixes = ings.filter(i => !adjustables.includes(i));
+  // Étape 1 : céréale + légumineuse seules, au plus près de la saisie.
+  // Étape 2 (dernier recours, seulement si l'étape 1 est impossible) : on autorise aussi
+  //         l'augmentation des compléments choisis (laitier/œuf, fruits à coque/graines).
+  const base = [cereale, legumineuse].filter(i => i.key && i.qty > 0);
+  const complements = [laitier, graines].filter(i => i.key);
   const ajustements = [];
   let ajustementImpossible = false;
+  let dernierRecours = false;
 
-  if (adjustables.length > 0) {
-    const contraintes = ['lys', 'saa'].map(aa => ({
-      n: adjustables.map(i => (i.prot100 / 100) * (i[aa] - REF_AA[aa])),
-      c: fixes.reduce((s, i) => s + (i.prot100 / 100) * i.qty * (i[aa] - REF_AA[aa]), 0)
-    }));
-    // Garde-fou : un aliment choisi ne peut pas être réduit à presque rien (min. 10 g)
-    adjustables.forEach((i, k) => {
-      contraintes.push({
-        n: adjustables.map((_, j) => (j === k ? 1 : 0)),
-        c: -Math.min(10, i.qty)
-      });
+  const appliquer = (adj, sol) => {
+    adj.forEach((i, k) => {
+      if (sol[k] !== i.qty) {
+        ajustements.push(`${i.nom} ${i.qty} → ${sol[k]} g`);
+        i.qty = sol[k];
+        document.getElementById(i.qtyId).value = i.qty;
+      }
     });
+  };
 
-    const solution = resoudre(adjustables.map(i => i.qty), contraintes);
-    if (solution) {
-      adjustables.forEach((i, k) => {
-        if (solution[k] !== i.qty) {
-          ajustements.push(`${i.nom} ${i.qty} → ${solution[k]} g`);
-          i.qty = solution[k];
-          document.getElementById(i.qtyId).value = i.qty;
-        }
-      });
+  if (profilAmine(ings).score < 1 - 1e-9) {
+    const ecart = (adj, sol) => Math.hypot(...adj.map((i, k) => sol[k] - i.qty));
+
+    const sol1 = base.length ? ajusterQuantites(ings, base) : null;
+    const tous = [...base, ...complements];
+    const sol2 = complements.length ? ajusterQuantites(ings, tous) : null;
+
+    // On garde l'étape 1, sauf si elle est impossible ou si les compléments
+    // permettent de corriger en déplaçant les quantités deux fois moins.
+    const preferer2 = sol2 && (!sol1 || ecart(tous, sol2) < 0.5 * ecart(base, sol1));
+
+    if (preferer2) {
+      appliquer(tous, sol2);
+      dernierRecours = true;
+    } else if (sol1) {
+      appliquer(base, sol1);
     } else {
       ajustementImpossible = true;
     }
@@ -223,7 +279,9 @@ function calculerAssoc() {
   const portionAdviceText = document.getElementById('portion-advice-text');
   const b12StatusText = document.getElementById('b12-status-text');
 
-  const detailAjust = ajustements.length ? ` Quantités ajustées au plus près de votre saisie : ${ajustements.join(', ')}.` : '';
+  const detailAjust = ajustements.length
+    ? ` Quantités ajustées au plus près de votre saisie${dernierRecours ? " (complément augmenté en dernier recours)" : ""} : ${ajustements.join(', ')}.`
+    : '';
 
   if (qualityScore === 100 && totalProt >= cibleProt * 0.9) {
     resultTitle.innerText = "🎯 Équivalent Viande !";
@@ -236,7 +294,7 @@ function calculerAssoc() {
     const limitant = lysLimite ? 'lysine' : 'acides aminés soufrés (méthionine + cystéine)';
     const conseil = lysLimite
       ? 'une légumineuse, un produit laitier ou un œuf'
-      : 'une céréale (riz, avoine, quinoa…) ou un œuf';
+      : 'une céréale (riz, avoine, quinoa…), un œuf ou des graines (sésame, tournesol…)';
     resultTitle.innerText = "⚠️ Profil aminé incomplet";
     resultText.innerText = `${ajustementImpossible ? "Impossible de corriger avec ces seuls aliments. " : ""}Acide aminé limitant : ${limitant} (${qualityScore}% du profil de référence). Ajoutez ${conseil}.`;
   }
