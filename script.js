@@ -57,6 +57,33 @@ const AA = {
 };
 
 /* ============================================================
+   DONNÉES DIGESTIBILITÉ
+   Digestibilité vraie des protéines (%), moyennes de littérature
+   (proches des coefficients utilisés dans le DIAAS). Approximatif :
+   varie selon la cuisson, le trempage, la mouture.
+   ============================================================ */
+const DIG_DEFAUT = 85;
+
+const DIG = {
+  // Céréales
+  riz: 89, quinoa: 90, pates: 88, avoine: 86, sarrasin: 85,
+  // Légumineuses / soja
+  lentilles: 84, lentilles_corail: 84, pois_chiches: 84,
+  haricots_rouges: 80, haricots_blancs: 80, haricots_noirs: 80,
+  pois_casses: 82, feves: 80,
+  soja_graines: 90, edamame: 90, tofu: 95, tempeh: 90,
+  // Produits laitiers / œufs
+  skyr: 95, yaourt_grec: 95, oeuf: 97, lait_vache: 95, lait_veg_b12: 92, fromage: 95,
+  // Fruits à coque / graines
+  sesame: 80, tournesol: 78, courge: 80, chanvre: 82,
+  amandes: 75, noix: 76, cajou: 80, noisettes: 76,
+  // Légumes
+  brocoli: 80, epinard: 78, petits_pois: 82, legumes_mix: 78,
+  // Levure
+  levure_b12: 85
+};
+
+/* ============================================================
    OUTILS
    ============================================================ */
 
@@ -66,15 +93,18 @@ function lireIngredient(selectId, qtyId) {
   const opt = select.options[select.selectedIndex];
   const key = select.value;
   if (!key) {
-    return { key: '', nom: '', qtyId, qty: 0, prot100: 0, b12100: 0, cal100: 0, lys: 0, saa: 0 };
+    return { key: '', nom: '', qtyId, qty: 0, prot100: 0, protDig100: 0, b12100: 0, cal100: 0, lys: 0, saa: 0 };
   }
   const aa = AA[key] || AA_DEFAUT;
+  const dig = DIG[key] ?? DIG_DEFAUT;
+  const prot100 = parseFloat(opt.dataset.prot) || 0;
   return {
     key,
     nom: opt.text.split(' (')[0],
     qtyId,
     qty: parseFloat(document.getElementById(qtyId).value) || 0,
-    prot100: parseFloat(opt.dataset.prot) || 0,
+    prot100,
+    protDig100: (prot100 * dig) / 100,   // protéines réellement absorbées, pour 100g
     b12100: parseFloat(opt.dataset.b12) || 0,
     cal100: parseFloat(opt.dataset.cal) || 0,
     lys: aa.lys,
@@ -82,19 +112,21 @@ function lireIngredient(selectId, qtyId) {
   };
 }
 
-// Protéines totales et score aminé du repas (min lysine / soufrés, plafonné à 1)
+// Protéines (brutes et digestibles) et score aminé du repas (min lysine / soufrés, plafonné à 1),
+// calculé sur les protéines RÉELLEMENT ABSORBÉES (digestibles).
 function profilAmine(ings) {
-  let prot = 0, lys = 0, saa = 0;
+  let protRaw = 0, protDig = 0, lys = 0, saa = 0;
   for (const i of ings) {
-    const p = (i.prot100 * i.qty) / 100;
-    prot += p;
-    lys += p * i.lys;
-    saa += p * i.saa;
+    protRaw += (i.prot100 * i.qty) / 100;
+    const pDig = (i.protDig100 * i.qty) / 100;
+    protDig += pDig;
+    lys += pDig * i.lys;
+    saa += pDig * i.saa;
   }
-  if (prot === 0) return { prot: 0, scoreLys: 0, scoreSaa: 0, score: 0 };
-  const scoreLys = lys / prot / REF_AA.lys;
-  const scoreSaa = saa / prot / REF_AA.saa;
-  return { prot, scoreLys, scoreSaa, score: Math.min(1, scoreLys, scoreSaa) };
+  if (protDig === 0) return { prot: protRaw, protDig: 0, scoreLys: 0, scoreSaa: 0, score: 0 };
+  const scoreLys = lys / protDig / REF_AA.lys;
+  const scoreSaa = saa / protDig / REF_AA.saa;
+  return { prot: protRaw, protDig, scoreLys, scoreSaa, score: Math.min(1, scoreLys, scoreSaa) };
 }
 
 // Résout M·x = v (petit système) par élimination de Gauss-Jordan ; null si singulier
@@ -169,14 +201,14 @@ function resoudre(x0, contraintes) {
 }
 
 // Cherche les quantités des aliments « adjustables » (les autres restent fixes) pour que
-// lysine ET acides aminés soufrés atteignent la référence, au plus près de la saisie.
+// lysine ET acides aminés soufrés DIGESTIBLES atteignent la référence, au plus près de la saisie.
 //  - céréale / légumineuse : peuvent monter ou descendre (minimum 10 g)
 //  - compléments (laitier/œuf, fruits à coque/graines) : peuvent seulement augmenter (max ×2, au moins 50 g)
 function ajusterQuantites(ings, adjustables) {
   const fixes = ings.filter(i => !adjustables.includes(i));
   const contraintes = ['lys', 'saa'].map(aa => ({
-    n: adjustables.map(i => (i.prot100 / 100) * (i[aa] - REF_AA[aa])),
-    c: fixes.reduce((s, i) => s + (i.prot100 / 100) * i.qty * (i[aa] - REF_AA[aa]), 0)
+    n: adjustables.map(i => (i.protDig100 / 100) * (i[aa] - REF_AA[aa])),
+    c: fixes.reduce((s, i) => s + (i.protDig100 / 100) * i.qty * (i[aa] - REF_AA[aa]), 0)
   }));
   adjustables.forEach((i, k) => {
     const e = adjustables.map((_, j) => (j === k ? 1 : 0));
@@ -216,10 +248,11 @@ function calculerAssoc() {
   // Cible de protéines (champ facultatif #cible-prot, 20 g par défaut) : sert uniquement aux messages
   const cibleProt = parseFloat(document.getElementById('cible-prot')?.value) || 20;
 
-  // ---- AJUSTEMENT : rapprocher le profil aminé de l'équivalent viande ----
+  // ---- AJUSTEMENT : rapprocher le profil aminé DIGESTIBLE de l'équivalent viande ----
   // Étape 1 : céréale + légumineuse seules, au plus près de la saisie.
-  // Étape 2 (dernier recours, seulement si l'étape 1 est impossible) : on autorise aussi
-  //         l'augmentation des compléments choisis (laitier/œuf, fruits à coque/graines).
+  // Étape 2 (dernier recours) : si l'étape 1 est impossible, ou si les compléments corrigent
+  //         le profil en déplaçant les quantités au moins deux fois moins, on augmente aussi
+  //         les compléments choisis (laitier/œuf, fruits à coque/graines).
   const base = [cereale, legumineuse].filter(i => i.key && i.qty > 0);
   const complements = [laitier, graines].filter(i => i.key);
   const ajustements = [];
@@ -257,9 +290,10 @@ function calculerAssoc() {
     }
   }
 
-  // ---- 1. PROTÉINES ET SCORE AMINÉ ----
+  // ---- 1. PROTÉINES ET SCORE AMINÉ (sur base digestible) ----
   const profil = profilAmine(ings);
-  const totalProt = parseFloat(profil.prot.toFixed(1));
+  const totalProt = parseFloat(profil.prot.toFixed(1));          // protéines brutes ingérées
+  const totalProtDig = parseFloat(profil.protDig.toFixed(1));    // protéines réellement absorbées
   const qualityScore = Math.round(profil.score * 100);
 
   // ---- 2. VITAMINE B12 (µg) ----
@@ -282,13 +316,14 @@ function calculerAssoc() {
   const detailAjust = ajustements.length
     ? ` Quantités ajustées au plus près de votre saisie${dernierRecours ? " (complément augmenté en dernier recours)" : ""} : ${ajustements.join(', ')}.`
     : '';
+  const detailDig = ` Protéines réellement absorbées (digestibilité prise en compte) : ${totalProtDig}g.`;
 
   if (qualityScore === 100 && totalProt >= cibleProt * 0.9) {
-    resultTitle.innerText = "🎯 Qualité protéique équivalente à la viande!";
-    resultText.innerText = `Profil en acides aminés équivalent à la viande, avec ${totalProt}g de protéines.${detailAjust}`;
+    resultTitle.innerText = "🎯 Qualité protéique équivalente à la viande !";
+    resultText.innerText = `Profil en acides aminés digestibles équivalent à la viande, avec ${totalProt}g de protéines.${detailDig}${detailAjust}`;
   } else if (qualityScore === 100) {
     resultTitle.innerText = "✅ Profil aminé complet";
-    resultText.innerText = `Profil complet, mais seulement ${totalProt}g de protéines : augmentez les portions pour égaler un steak.${detailAjust}`;
+    resultText.innerText = `Profil complet (sur base digestible), mais seulement ${totalProt}g de protéines : augmentez les portions pour égaler un steak.${detailDig}${detailAjust}`;
   } else {
     const lysLimite = profil.scoreLys <= profil.scoreSaa;
     const limitant = lysLimite ? 'lysine' : 'acides aminés soufrés (méthionine + cystéine)';
@@ -296,7 +331,7 @@ function calculerAssoc() {
       ? 'une légumineuse, un produit laitier ou un œuf'
       : 'une céréale (riz, avoine, quinoa…), un œuf ou des graines (sésame, tournesol…)';
     resultTitle.innerText = "⚠️ Profil aminé incomplet";
-    resultText.innerText = `${ajustementImpossible ? "Impossible de corriger avec ces seuls aliments. " : ""}Acide aminé limitant : ${limitant} (${qualityScore}% du profil de référence). Ajoutez ${conseil}.`;
+    resultText.innerText = `${ajustementImpossible ? "Impossible de corriger avec ces seuls aliments. " : ""}Acide aminé limitant (sur base digestible) : ${limitant} (${qualityScore}% du profil de référence). Ajoutez ${conseil}.${detailDig}`;
   }
 
   if (totalProt >= cibleProt * 0.9) {
