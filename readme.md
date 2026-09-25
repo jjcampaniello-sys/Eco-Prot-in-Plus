@@ -45,6 +45,5 @@ Comparée à une référence journalière de 4 µg (ANSES, adulte). L'absorption
 
 ## Limites connues
 
-- Les valeurs nutritionnelles (protéines, acides aminés, B12, calories) sont des moyennes de tables généralistes (USDA/Ciqual) et peuvent varier selon le produit réel utilisé — vérifie les étiquettes si besoin.
-- Le score aminé ignore la digestibilité (les protéines végétales sont en général un peu moins bien absorbées que les protéines animales).
+- Le score aminé et l'ajustement des quantités intègrent la digestibilité (coefficients approximatifs par aliment, table DIG dans script.js).
 - Les calories sont calculées sur le poids saisi (cru/sec pour les céréales et légumineuses) : l'eau absorbée à la cuisson change le poids et le volume, jamais l'apport calorique.
