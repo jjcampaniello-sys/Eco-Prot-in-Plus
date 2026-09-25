@@ -284,7 +284,7 @@ function calculerAssoc() {
     : '';
 
   if (qualityScore === 100 && totalProt >= cibleProt * 0.9) {
-    resultTitle.innerText = "🎯 Équivalent Viande !";
+    resultTitle.innerText = "🎯 Qualité protéique équivalente à la viande!";
     resultText.innerText = `Profil en acides aminés équivalent à la viande, avec ${totalProt}g de protéines.${detailAjust}`;
   } else if (qualityScore === 100) {
     resultTitle.innerText = "✅ Profil aminé complet";
