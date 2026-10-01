@@ -65,29 +65,30 @@ const AA = {
 const DIG_DEFAUT = 85;
 
 const DIG = {
-  // Céréales
   riz: 89, quinoa: 90, pates: 88, avoine: 86, sarrasin: 85,
-  // Légumineuses / soja
   lentilles: 84, lentilles_corail: 84, pois_chiches: 84,
   haricots_rouges: 80, haricots_blancs: 80, haricots_noirs: 80,
   pois_casses: 82, feves: 80,
   soja_graines: 90, edamame: 90, tofu: 95, tempeh: 90,
-  // Produits laitiers / œufs
   skyr: 95, yaourt_grec: 95, oeuf: 97, lait_vache: 95, lait_veg_b12: 92, fromage: 95,
-  // Fruits à coque / graines
   sesame: 80, tournesol: 78, courge: 80, chanvre: 82,
   amandes: 75, noix: 76, cajou: 80, noisettes: 76,
-  // Légumes
   brocoli: 80, epinard: 78, petits_pois: 82, legumes_mix: 78,
-  // Levure
   levure_b12: 85
 };
+
+// Toutes les légumineuses / protéines végétales pouvant être associées (liste à quantités multiples)
+const LEGUMINEUSE_KEYS = [
+  'lentilles', 'lentilles_corail', 'pois_chiches', 'haricots_rouges',
+  'haricots_blancs', 'haricots_noirs', 'pois_casses', 'feves',
+  'tofu', 'tempeh', 'soja_graines', 'edamame'
+];
 
 /* ============================================================
    OUTILS
    ============================================================ */
 
-// Lit un ingrédient (menu + quantité). Sans sélection, la quantité compte pour 0.
+// Lit un ingrédient à sélection unique (menu + quantité). Sans sélection, la quantité compte pour 0.
 function lireIngredient(selectId, qtyId) {
   const select = document.getElementById(selectId);
   const opt = select.options[select.selectedIndex];
@@ -109,6 +110,64 @@ function lireIngredient(selectId, qtyId) {
     cal100: parseFloat(opt.dataset.cal) || 0,
     lys: aa.lys,
     saa: aa.saa
+  };
+}
+
+// Lit la liste des légumineuses, une par ligne (input id="qty-leg-<clé>").
+// Ne retient que celles dont la quantité saisie est > 0.
+function lireLegumineuses() {
+  const res = [];
+  for (const key of LEGUMINEUSE_KEYS) {
+    const input = document.getElementById('qty-leg-' + key);
+    if (!input) continue;
+    const qty = parseFloat(input.value) || 0;
+    if (qty <= 0) continue;
+    const aa = AA[key] || AA_DEFAUT;
+    const dig = DIG[key] ?? DIG_DEFAUT;
+    const prot100 = parseFloat(input.dataset.prot) || 0;
+    res.push({
+      key,
+      nom: input.previousElementSibling ? input.previousElementSibling.textContent : key,
+      qtyId: input.id,
+      qty,
+      prot100,
+      protDig100: (prot100 * dig) / 100,
+      b12100: parseFloat(input.dataset.b12) || 0,
+      cal100: parseFloat(input.dataset.cal) || 0,
+      lys: aa.lys,
+      saa: aa.saa
+    });
+  }
+  return res;
+}
+
+// Construit un ingrédient virtuel représentant le MÉLANGE de plusieurs légumineuses,
+// pour que le solveur les traite comme une seule variable (le total du mélange),
+// en gardant les proportions relatives entre elles.
+// Avec une seule légumineuse, le composite est strictement identique à l'aliment seul.
+function construireComposite(items) {
+  if (!items.length) return null;
+  const qtyTotal = items.reduce((s, i) => s + i.qty, 0);
+  if (qtyTotal === 0) return null;
+
+  const prot100 = items.reduce((s, i) => s + i.prot100 * i.qty, 0) / qtyTotal;
+  const protDig100 = items.reduce((s, i) => s + i.protDig100 * i.qty, 0) / qtyTotal;
+  const b12100 = items.reduce((s, i) => s + i.b12100 * i.qty, 0) / qtyTotal;
+  const cal100 = items.reduce((s, i) => s + i.cal100 * i.qty, 0) / qtyTotal;
+
+  // lys/saa pondérés par la contribution de chaque aliment aux protéines digestibles totales
+  const protDigTotal = items.reduce((s, i) => s + (i.protDig100 * i.qty) / 100, 0);
+  const lys = protDigTotal > 0
+    ? items.reduce((s, i) => s + ((i.protDig100 * i.qty) / 100) * i.lys, 0) / protDigTotal
+    : AA_DEFAUT.lys;
+  const saa = protDigTotal > 0
+    ? items.reduce((s, i) => s + ((i.protDig100 * i.qty) / 100) * i.saa, 0) / protDigTotal
+    : AA_DEFAUT.saa;
+
+  return {
+    key: 'legumineuse_composite', nom: 'Mélange légumineuses', complement: false,
+    qty: qtyTotal, prot100, protDig100, b12100, cal100, lys, saa,
+    _items: items
   };
 }
 
@@ -162,7 +221,6 @@ function resoudre(x0, contraintes) {
 
   if (ok(x0)) return x0.slice();
 
-  // Candidats : projection de x0 sur les sous-ensembles (taille 1 à dim) de frontières
   const candidats = [];
   const explorer = (debut, choisis) => {
     if (choisis.length > 0) {
@@ -181,7 +239,6 @@ function resoudre(x0, contraintes) {
 
   const faisables = candidats.filter(ok).sort((p, q) => dist(p) - dist(q));
 
-  // Arrondi en grammes en restant dans la zone faisable
   for (const brut of faisables) {
     let combos = [[]];
     for (const v of brut) {
@@ -202,7 +259,7 @@ function resoudre(x0, contraintes) {
 
 // Cherche les quantités des aliments « adjustables » (les autres restent fixes) pour que
 // lysine ET acides aminés soufrés DIGESTIBLES atteignent la référence, au plus près de la saisie.
-//  - céréale / légumineuse : peuvent monter ou descendre (minimum 10 g)
+//  - céréale / mélange de légumineuses : peuvent monter ou descendre (minimum 10 g au total)
 //  - compléments (laitier/œuf, fruits à coque/graines) : peuvent seulement augmenter (max ×2, au moins 50 g)
 function ajusterQuantites(ings, adjustables) {
   const fixes = ings.filter(i => !adjustables.includes(i));
@@ -227,14 +284,16 @@ function ajusterQuantites(ings, adjustables) {
    ============================================================ */
 function calculerAssoc() {
   const cereale = lireIngredient('cereale', 'qty-cereale');
-  const legumineuse = lireIngredient('legumineuse', 'qty-legumineuse');
+  const legumineuses = lireLegumineuses();          // 0, 1 ou plusieurs légumineuses
+  const legComposite = construireComposite(legumineuses); // représentation "mélange" pour le solveur
   const laitier = lireIngredient('laitier', 'qty-laitier');
   const graines = lireIngredient('graines', 'qty-graines');
   const legume = lireIngredient('legume', 'qty-legume');
   const b12 = lireIngredient('b12-source', 'qty-b12');
   laitier.complement = true;
   graines.complement = true;
-  const ings = [cereale, legumineuse, laitier, graines, legume, b12];
+
+  const ings = [cereale, ...legumineuses, laitier, graines, legume, b12]; // pour les totaux (toujours les aliments réels)
 
   if (!ings.some(i => i.key)) {
     alert("Veuillez choisir au moins un aliment.");
@@ -245,23 +304,35 @@ function calculerAssoc() {
     return;
   }
 
-  // Cible de protéines (champ facultatif #cible-prot, 20 g par défaut) : sert uniquement aux messages
   const cibleProt = parseFloat(document.getElementById('cible-prot')?.value) || 20;
 
   // ---- AJUSTEMENT : rapprocher le profil aminé DIGESTIBLE de l'équivalent viande ----
-  // Étape 1 : céréale + légumineuse seules, au plus près de la saisie.
-  // Étape 2 (dernier recours) : si l'étape 1 est impossible, ou si les compléments corrigent
-  //         le profil en déplaçant les quantités au moins deux fois moins, on augmente aussi
-  //         les compléments choisis (laitier/œuf, fruits à coque/graines).
-  const base = [cereale, legumineuse].filter(i => i.key && i.qty > 0);
+  // Les légumineuses sont traitées comme un seul "mélange" (legComposite) : leurs
+  // proportions relatives sont conservées, seul le total du mélange est recalculé.
+  const base = [cereale, legComposite].filter(i => i && i.key && i.qty > 0);
   const complements = [laitier, graines].filter(i => i.key);
+  // Version "simplifiée" des ingrédients fixes pour le solveur : le mélange remplace les légumineuses individuelles
+  const ingsSolver = [cereale, legComposite, laitier, graines, legume, b12].filter(i => i && i.key);
+
   const ajustements = [];
   let ajustementImpossible = false;
   let dernierRecours = false;
 
   const appliquer = (adj, sol) => {
     adj.forEach((i, k) => {
-      if (sol[k] !== i.qty) {
+      if (sol[k] === i.qty) return;
+      if (i.key === 'legumineuse_composite') {
+        // Redistribue le nouveau total du mélange sur chaque légumineuse, au prorata
+        const scale = i.qty > 0 ? sol[k] / i.qty : 0;
+        i._items.forEach(it => {
+          const nouveauQty = Math.round(it.qty * scale);
+          if (nouveauQty !== it.qty) {
+            ajustements.push(`${it.nom} ${it.qty} → ${nouveauQty} g`);
+            it.qty = nouveauQty;
+            document.getElementById(it.qtyId).value = it.qty;
+          }
+        });
+      } else {
         ajustements.push(`${i.nom} ${i.qty} → ${sol[k]} g`);
         i.qty = sol[k];
         document.getElementById(i.qtyId).value = i.qty;
@@ -272,12 +343,10 @@ function calculerAssoc() {
   if (profilAmine(ings).score < 1 - 1e-9) {
     const ecart = (adj, sol) => Math.hypot(...adj.map((i, k) => sol[k] - i.qty));
 
-    const sol1 = base.length ? ajusterQuantites(ings, base) : null;
+    const sol1 = base.length ? ajusterQuantites(ingsSolver, base) : null;
     const tous = [...base, ...complements];
-    const sol2 = complements.length ? ajusterQuantites(ings, tous) : null;
+    const sol2 = complements.length ? ajusterQuantites(ingsSolver, tous) : null;
 
-    // On garde l'étape 1, sauf si elle est impossible ou si les compléments
-    // permettent de corriger en déplaçant les quantités deux fois moins.
     const preferer2 = sol2 && (!sol1 || ecart(tous, sol2) < 0.5 * ecart(base, sol1));
 
     if (preferer2) {
@@ -290,10 +359,10 @@ function calculerAssoc() {
     }
   }
 
-  // ---- 1. PROTÉINES ET SCORE AMINÉ (sur base digestible) ----
+  // ---- 1. PROTÉINES ET SCORE AMINÉ (sur base digestible, aliments réels) ----
   const profil = profilAmine(ings);
-  const totalProt = parseFloat(profil.prot.toFixed(1));          // protéines brutes ingérées
-  const totalProtDig = parseFloat(profil.protDig.toFixed(1));    // protéines réellement absorbées
+  const totalProt = parseFloat(profil.prot.toFixed(1));
+  const totalProtDig = parseFloat(profil.protDig.toFixed(1));
   const qualityScore = Math.round(profil.score * 100);
 
   // ---- 2. VITAMINE B12 (µg) ----
@@ -342,7 +411,7 @@ function calculerAssoc() {
     portionAdviceText.style.color = "#ed6c02";
   }
 
-  const B12_REF_JOUR = 4; // µg/j, référence ANSES adulte
+  const B12_REF_JOUR = 4;
   const pctB12 = Math.round((totalB12 / B12_REF_JOUR) * 100);
 
   if (totalB12 >= B12_REF_JOUR) {
