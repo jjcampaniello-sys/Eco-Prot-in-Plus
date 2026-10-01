@@ -35,28 +35,23 @@
       </div>
 
       <!-- Légumineuses & Soja -->
-      <div class="select-group">
-        <label for="legumineuse">Légumineuses / Soja (poids CRU) :</label>
-        <select id="legumineuse">
-          <option value="">-- Aucun --</option>
-          <option value="lentilles" data-prot="25.0" data-b12="0" data-cal="350">Lentilles sèches (350 kcal / 25g prot / 100g)</option>
-          <option value="pois_chiches" data-prot="19.0" data-b12="0" data-cal="364">Pois chiches secs (364 kcal / 19g prot / 100g)</option>
-          <option value="lentilles_corail" data-prot="24.0" data-b12="0" data-cal="350">Lentilles corail (350 kcal / 24g prot / 100g)</option>
-<option value="haricots_rouges" data-prot="22.0" data-b12="0" data-cal="335">Haricots rouges secs (335 kcal / 22g prot / 100g)</option>
-<option value="haricots_blancs" data-prot="21.0" data-b12="0" data-cal="335">Haricots blancs secs (335 kcal / 21g prot / 100g)</option>
-<option value="haricots_noirs" data-prot="21.0" data-b12="0" data-cal="340">Haricots noirs secs (340 kcal / 21g prot / 100g)</option>
-<option value="pois_casses" data-prot="23.0" data-b12="0" data-cal="345">Pois cassés secs (345 kcal / 23g prot / 100g)</option>
-<option value="feves" data-prot="26.0" data-b12="0" data-cal="340">Fèves sèches (340 kcal / 26g prot / 100g)</option>
-<option value="soja_graines" data-prot="36.0" data-b12="0" data-cal="446" data-complete="true">Graines de soja sèches (446 kcal / 36g prot / 100g) ★</option>
-<option value="edamame" data-prot="11.0" data-b12="0" data-cal="121" data-complete="true">Edamame surgelés (121 kcal / 11g prot / 100g) ★</option>
-          <option value="tofu" data-prot="12.0" data-b12="0" data-cal="144" data-complete="true">Tofu frais (144 kcal / 12g prot / 100g) ★</option>
-          <option value="tempeh" data-prot="19.0" data-b12="0" data-cal="193" data-complete="true">Tempeh (193 kcal / 19g prot / 100g) ★</option>
-        </select>
-        <div class="portion-inputs">
-          <input type="number" id="qty-legumineuse" value="50" min="0" placeholder="Grammes">
-          <span>g</span>
-        </div>
-      </div>
+<div class="select-group">
+  <label>Légumineuses / Soja (poids CRU) — une quantité par ligne pour associer plusieurs :</label>
+  <div class="legumineuse-list">
+    <div class="legumineuse-item"><span>Lentilles sèches</span><input type="number" class="leg-qty" id="qty-leg-lentilles" data-key="lentilles" data-prot="25.0" data-b12="0" data-cal="350" value="0" min="0"><span>g</span></div>
+    <div class="legumineuse-item"><span>Lentilles corail</span><input type="number" class="leg-qty" id="qty-leg-lentilles_corail" data-key="lentilles_corail" data-prot="24.0" data-b12="0" data-cal="350" value="0" min="0"><span>g</span></div>
+    <div class="legumineuse-item"><span>Pois chiches secs</span><input type="number" class="leg-qty" id="qty-leg-pois_chiches" data-key="pois_chiches" data-prot="19.0" data-b12="0" data-cal="364" value="0" min="0"><span>g</span></div>
+    <div class="legumineuse-item"><span>Haricots rouges secs</span><input type="number" class="leg-qty" id="qty-leg-haricots_rouges" data-key="haricots_rouges" data-prot="22.0" data-b12="0" data-cal="335" value="0" min="0"><span>g</span></div>
+    <div class="legumineuse-item"><span>Haricots blancs secs</span><input type="number" class="leg-qty" id="qty-leg-haricots_blancs" data-key="haricots_blancs" data-prot="21.0" data-b12="0" data-cal="335" value="0" min="0"><span>g</span></div>
+    <div class="legumineuse-item"><span>Haricots noirs secs</span><input type="number" class="leg-qty" id="qty-leg-haricots_noirs" data-key="haricots_noirs" data-prot="21.0" data-b12="0" data-cal="340" value="0" min="0"><span>g</span></div>
+    <div class="legumineuse-item"><span>Pois cassés secs</span><input type="number" class="leg-qty" id="qty-leg-pois_casses" data-key="pois_casses" data-prot="23.0" data-b12="0" data-cal="345" value="0" min="0"><span>g</span></div>
+    <div class="legumineuse-item"><span>Fèves sèches</span><input type="number" class="leg-qty" id="qty-leg-feves" data-key="feves" data-prot="26.0" data-b12="0" data-cal="340" value="0" min="0"><span>g</span></div>
+    <div class="legumineuse-item"><span>Tofu frais ★</span><input type="number" class="leg-qty" id="qty-leg-tofu" data-key="tofu" data-prot="12.0" data-b12="0" data-cal="144" value="0" min="0"><span>g</span></div>
+    <div class="legumineuse-item"><span>Tempeh ★</span><input type="number" class="leg-qty" id="qty-leg-tempeh" data-key="tempeh" data-prot="19.0" data-b12="0" data-cal="193" value="0" min="0"><span>g</span></div>
+    <div class="legumineuse-item"><span>Graines de soja sèches ★</span><input type="number" class="leg-qty" id="qty-leg-soja_graines" data-key="soja_graines" data-prot="36.0" data-b12="0" data-cal="446" value="0" min="0"><span>g</span></div>
+    <div class="legumineuse-item"><span>Edamame surgelés ★</span><input type="number" class="leg-qty" id="qty-leg-edamame" data-key="edamame" data-prot="11.0" data-b12="0" data-cal="121" value="0" min="0"><span>g</span></div>
+  </div>
+</div>
     </div>
 
     <div class="grid-select">
