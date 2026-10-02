@@ -44,22 +44,6 @@ select, input[type="number"] {
   border-radius: 6px;
   font-size: 0.95rem;
 }
-.legumineuse-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 8px;
-  margin-top: 5px;
-}
-.legumineuse-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.9rem;
-}
-.legumineuse-item input[type="number"] {
-  width: 70px;
-  padding: 6px;
-}
 
 .portion-inputs {
   display: grid;
